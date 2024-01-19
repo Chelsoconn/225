@@ -1246,3 +1246,159 @@ At the time of function invocation
 
     
 
+**Higher order functions**
+
+**Higher-order functions** can accept a function as an argument, return a function when invoked, or both. In other words, higher-order functions work with other functions.
+
+To understand this concept, you must think of JavaScript functions as *values*; functions are objects. We know that they can take values as input and return a value as output. Thus, a higher-order function is one where either an input or output value is a function.
+
+**Examples**
+
+1) What are the characteristics that define higher-order functions?
+
+   A higher-order function must either:
+
+   1. Take a function as an argument,
+   2. return a function,
+   3. or Both.
+
+2) ```js
+   let numbers = [1, 2, 3, 4];
+   function checkEven(number) {
+     return number % 2 === 0;
+   }
+   
+   numbers.filter(checkEven); // [2, 4]
+   ```
+
+   Of the two functions invoked (`checkEven` and `filter`), which is a higher-order function and why?
+
+   `filter` is a higher-order function because it takes a function — `checkEven` — as an argument. `checkEven` is not a higher-order function since it doesn't take any function as an argument and doesn't return a function.
+
+3. Implement `makeCheckEven` below, such that the last line of the code returns an array `[2, 4]`.
+
+   ```js
+   let numbers = [1, 2, 3, 4];
+   function makeCheckEven() {
+     // ... implement this function
+   }
+   
+   let checkEven = makeCheckEven();
+   
+   numbers.filter(checkEven); // [2, 4]
+   ```
+
+   ```js
+   function makeCheckEven() {
+     return function(number) {
+       return number % 2 === 0;
+     };
+   }
+   ```
+
+   
+
+   4. 
+
+   ```js
+   
+   function makeListTransformer(func) {
+     // ... implement this function
+   }
+   
+   let timesTwo = makeListTransformer(function(number) {
+     return number * 2;
+   });
+   
+   timesTwo([1, 2, 3, 4]); // [2, 4, 6, 8]
+   ```
+
+```js
+function makeListTransformer(func) {
+  return function(collection) {
+    return collection.map(func);
+  };
+}
+```
+
+
+
+
+
+**Closures and Private Data**
+
+Functions *close over* or *enclose* the lexical environment at their definition point, so we call them **closures**.  They always have access to what they close over, regardless of when and where the program invokes the function. You can think of closure as a function combined with any variables from its lexical scope that the function needs.
+
+```js
+function startup() {
+  let status = 'ready';
+  return function() {
+    console.log('The system is ready.');
+  };
+}
+
+let ready = startup();
+let systemStatus = // ?
+```
+
+How can you set the value of `systemStatus` to the value of the inner variable `status` without changing `startup` in any way?
+
+You can't do this. **There is no way to access the value of the variable from outside the function.** `status` is only defined in the body of the `startup` function.
+
+As shown above, you have choices about how to organize your code and data. Using closures to restrict data access is a good way to force other developers to use the intended interface. By keeping the collection of items private, we enforce access via the provided methods. This restriction helps protect data integrity since developers must use the defined interface
+
+so instead of being able to add a method and delete a property or access a property, use a closure and make sure that you can use a closure and dont include the list in the object
+
+```js
+let list = makeList();
+list.clear = function() {
+  this.items = [];
+  console.log('all items deleted!');
+};
+
+instead 
+let list = makeList();
+list.clear = function() {
+  // there is no way to access the items from within this method
+  // because the closure that contains them is inaccessible
+
+  items;                  // throws ReferenceError!
+  this.items;             // undefined
+};
+
+//to add this method now we must update the original definition of makeList
+
+function makeList() {
+  let items = [];
+
+  return {
+    add(item) {
+      let index = items.indexOf(item);
+      if (index === -1) {
+        items.push(item);
+        console.log(item + ' added!');
+      }
+    },
+
+    clear() {
+      items = [];
+      console.log('all items deleted!');
+    },
+
+    list() {
+      items.forEach(function(item) {
+        console.log(item);
+      });
+    },
+
+    remove(item) {
+      let index = items.indexOf(item);
+      if (index !== -1) {
+        items.splice(index, 1);
+        console.log(item + ' removed!');
+      }
+    }
+  };
+}
+```
+
