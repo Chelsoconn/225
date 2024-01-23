@@ -1402,3 +1402,807 @@ function makeList() {
 }
 ```
 
+
+
+**Garbage collector**
+
+In JavaScript, values are allocated memory when they are created, and they are eventually, "automatically" freed up when they are not in use. This process of "automatically" freeing memory up is called **garbage-collection**. (GC)
+
+Of course, JavaScript allocates memory for us and has GC, so this intricate dance of claim/test/copy/use/release isn't necessary. You can write the above code in a simpler, familiar way:
+
+Notice that we don't need code to claim and release memory; the JavaScript runtime handles that for us. It gets memory from the system when we create new objects and primitive values and releases it when the program has no more references to them. That is, when there are no variables, objects, or closures that maintain a reference to the object or value, JavaScript marks the memory as eligible for GC. This concept is important. As long as the object or value remains accessible, JavaScript can't, and won't, garbage collect it.
+
+```js
+function logName() {
+  let name = 'Sarah'; // Declare a variable and set its value. The JavaScript
+                      // runtime automatically allocates the memory.
+  console.log(name);  // Do something with name
+}
+
+logName();
+// "Sarah" is now eligible for GC
+// more code below this line
+```
+
+```js
+function logName() {
+  let name = 'Sarah'; // Declare a variable and set its value. The JavaScript
+                      // runtime automatically allocates the memory.
+  console.log(name);  // Do something with name
+  return name;        // Returns "Sarah" to caller
+}
+
+let loggedName = logName(); // loggedName variable is assigned the value "Sarah"
+                            // the "Sarah" assigned to `loggedName` is NOT eligible for GC
+                            // the "Sarah" assigned to `name` IS eligible for GC
+// more code below this line
+```
+
+```js
+function logName() {
+  let name = {
+    firstName: 'Sarah'          // Declare a variable and set its value. The JavaScript
+  };                            // runtime automatically allocates the memory.
+
+  console.log(name.firstName);  // Do something with name
+  return name;                  // Returns the `name` object to caller
+}
+
+let loggedName = logName();     // loggedName variable is assigned the value stored in name
+                                // which is a reference to the object literal { firstName: "Sarah" }
+                                // The value returned is NOT eligible for GC.
+                                // This value is the same value that is assigned to name
+// more code below this line
+```
+
+**Stack and the Heap**
+
+JavaScript stores most primitive values as well as references on the stack, and everything else on the heap. You can think of references as pointers to the actual value of an object, array, or string that lives in the heap.
+
+The stack doesn't participate in garbage collection. That means that **primitive values don't get involved in garbage collection when they are stored on the stack**. When a function or block begins executing in a JavaScript program, JavaScript allocates memory on the stack for the variables defined in that block or function. Since each item has fixed size, JavaScript can calculate the amount of memory it needs during the creation phase of execution without knowing the specific values. That means it can determine how much stack space it needs when hoisting occurs. When the block or function is done running, the allocated stack memory gets returned to the system automatically. This process is somewhat similar to garbage collection, but it is considered distinct.
+
+Some primitive values can't be stored on the stack. Stack values typically must have a fixed size (say, 64 bits). Values that don't fit in that size must be stored elsewhere, typically the heap. Strings and BigInts, for instance, usually can't be stored in 64 bits, so they get placed in the heap or somewhere else. However, exactly where these values get stored is an implementation detail. As far as you, as a programmer, are concerned, they act like they are on the stack, so that's where they are. Since they act like they are on the stack, they probably don't participate in garbage collection, but, again, that is an implementation detail.
+
+The heap is much trickier to deal with since each value has a different size that can't be determined ahead of time. Instead, new values must be added to the heap when they get created. Since the program can retain references to the values on the heap, it can't use the same allocate and release scheme used with the stack. Instead, it needs to rely on garbage collection to detect when a value's reference count reaches 0.
+
+Garbage collection can occur at any time; it often occurs at periodic intervals during a program's lifetime. In particular, the programmer usually has no control over when GC occurs
+
+All the garbage collector must do is look for and deallocate values that are eligible for garbage collection. If it uses a reference counting system, it needs to look for values with a reference count of 0.
+
+Note that GC doesn't happen when a variable goes out of scope. That's a common misconception. A variable can go out of scope, but there can be many other references. Closures, arrays, and objects are a significant source of persistent references.
+
+
+
+```js
+function go() {
+  let foo = {};
+  let bar = { qux: foo };
+  foo.xyz = bar;
+}
+
+go();
+// Neither `foo` nor `bar` is eligible for GC
+```
+
+In this code, we create two objects in `go` that we assign to the `foo` and `bar` local variables. Furthermore, `bar` holds a reference to `foo`in its `qux` property, while `foo` holds a reference to `bar` in its `xyz` property. Both objects have reference counts of 2: one reference is to the variable to which each object is assigned, and the other reference is in a property of the other object. When we exit the `go` function, the reference counts of both objects get decremented by 1 since both `foo` and `bar` have gone out of scope, so they no longer hold references to the objects. However, the two objects still exist and are not eligible for garbage collection since they still reference each other. These two objects will never go away until the program ends.
+
+[Memory Management](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Memory_Management)
+
+**How Closures Affect Garbabe Collection**
+
+When you create a closure, it stores a reference to all variables it can access. Each of those variables references an object or primitive value. Theoretically, as long as the closure exists, those variables remain in existence, which means that the objects or values they reference must also endure. For this reason, JavaScript can't garbage collect any objects referenced by the variables that the closure keeps in its context.
+
+```js
+function makeArrayLogger(arr) {
+  return function() {
+    console.log(arr);
+  };
+}
+
+let logger = makeArrayLogger([1, 2, 3]);
+```
+
+After the above code runs, `logger` references a function that closed over the local variable `arr`, which right now contains the array `[1, 2, 3]`. Since the closure must keep `arr` around, the reference to `[1, 2, 3]` must also stick around, which means that JavaScript can't garbage collect `[1, 2, 3]`. When we call `logger` some time later, it still has access to `arr` and can log its value.
+
+Before JavaScript can garbage collect `[1, 2, 3]`, you must ensure that nothing else in the program references it; that includes every closure that has access to the `[1, 2, 3]` array. That's not typically a concern, but if you find that you must remove a closure or other reference explicitly, you can assign `null` to the item that references it. For instance:
+
+`logger = null;`
+
+That dereferences the closure shown above, which in turn dereferences `[1, 2, 3]` through the `arr` variable. If nothing else has a reference to `[1, 2, 3]`, JavaScript is free to garbage collect it.
+
+
+
+Examples
+
+In the following code, when can JavaScript garbage collect each of the following arrays? `[1]`, `[2]`, and `[1, 2]`.
+
+1) ```js
+   let a = [1];
+   
+   function add(b) {
+     a = a.concat(b);
+   }
+   
+   function run() {
+     let c = [2];
+     let d = add(c);
+   }
+   
+   run();
+   ```
+
+   We can GC `[1]` after line 4 executes. Since this line reassigns the `a` variable, `a` no longer references `[1]`, nor do any other variables in this program.
+
+   We can GC `[2]` after the `run` function returns. Since `[2]` is only assigned to the `c` variable, `[2]` is no longer needed after `run` returns.
+
+   We can GC `[1, 2]` only after the program ends. Since `a` is a global variable, the reference to `[1, 2]` doesn't go away until JS discards the `a` variable, and that only occurs when the program terminates.
+
+   
+
+2) In the following code, when can JavaScript garbage collect the value `["Steve", "Edie"]`?
+
+```js
+function makeHello(names) {
+  return function() {
+    console.log("Hello, " + names[0] + " and " + names[1] + "!");
+  };
+}
+
+let helloSteveAndEdie = makeHello(["Steve", "Edie"]);
+```
+
+`["Steve", "Edie"]` is eligible for GC when the program finishes; specifically, after JavaScript garbage collects the function referenced by `helloSteveAndEdie`.
+
+
+
+3. Is JavaScript a garbage-collected language, and if so, what does this entail?
+
+   JavaScript is a garbage-collected language. This means that the JS runtime, rather than the developer, handles memory deallocation.
+
+4. ```js
+   let myNum = 1;
+   
+   function foo() {
+     let myArr = ['this is an array'];
+     // what is eligible for GC here?
+   }
+   
+   foo();
+   
+   // what is eligible for GC here?
+   
+   // more code
+   ```
+
+   *Are either of the values `1` or `['this is an array']` eligible for garbage collection on line 5? What about on line 10?*
+
+   Neither value is eligible for garbage collection on line 5. Since variables that contain numbers are stored on the stack, the value `1` is never eligible for GC. The array is also not eligible for GC since it is still referenced by the `myArr` variable.
+
+   `['this is an array']` is eligible for garbage collection on line 10. Since `myArr` is function-scoped, the variable's reference to `['this is an array']` is broken after the function finishes running.
+
+5. ```js
+   function makeGreeting() {
+     let foo = { greeting: 'hello' };
+     return function(name) {
+       foo.name = name;
+       return foo;
+     };
+   }
+   
+   let greeting = makeGreeting();
+   
+   // is the object eligible for GC here?
+   
+   // more code
+   ```
+
+   No, it is not. The closure created on the function returned by `makeGreeting` on line 9 prevents the object from being garbage collected.
+
+6. ```js
+   let bash = {};
+   //Will the object {} ever be eligible for garbage collection?
+   ```
+
+   Yes. After the script finishes running the object will be eligible for garbage collection.
+
+
+
+**Partial Function Application**
+
+Partial function application uses a function (we'll call it the *generator*) that creates a new function (the *applicator*) to call a third function (the *primary*). 
+
+The generator receives some of the primary's arguments, while the applicator receives the rest when it gets invoked. The applicator then calls the primary and passes it all of its arguments, both those passed to the generator and those passed to the applicator.
+
+```js
+function primaryFunction(arg1, arg2) {
+  console.log(arg1);
+  console.log(arg2);
+}
+
+function generatorFunction(arg1) { //gernerator
+  return function(arg2) { // applicator
+    return primaryFunction(arg1, arg2);
+  }
+}
+
+let applicatorFunction = generatorFunction('Hello');
+applicatorFunction(37.2);   // Performs primaryFunction('Hello', 37.2);
+// => Hello
+// => 37.2
+```
+
+So the primary function is the one that does not utilize any other function 
+
+The generator provides an argument the second function uses by use of a closure 
+
+The applicator function provides the argument that will be passed to the generator 
+
+```js
+function makeAddN(addend) {                 // generator
+  // Saves addend via closure; uses addend when function invoked.
+  return function(number) {                 // applicator
+    return add(addend, number);             // call primary
+  }
+}
+
+let add1 = makeAddN(1);
+add1(1);                           // 2
+add1(41);                          // 42
+
+let add9 = makeAddN(9);
+add9(1);                           // 10
+add9(9);                           // 18
+```
+
+Note how the closure lets us "carry around" a reference to the variable `addend`, which is a local variable in `makeAddN`. Closure allows the applicator to use the value of `addend` later, long after the local `makeAddN` finishes running. In effect, closure lets us define private data that persists for the function's lifetime. This technique is useful when we need to **package both data and functionality together**. We can pass around functions like this and not lose the private data.
+
+Another approach produces a more flexible solution. We can create a general purpose generator function that partially applies a single argument to any two-argument primary:
+
+```js
+function add(first, second) {
+  return first + second;
+}
+
+function repeat(count, string) {
+  let result = '';
+  let i;
+  for (i = 0; i < count; i += 1) {
+    result += string;
+  }
+
+  return result;
+}
+
+function partial(primary, arg1) {
+  return function(arg2) {
+    return primary(arg1, arg2);
+  };
+}
+
+> let add1 = partial(add, 1);
+> add1(2);
+= 3
+> add1(6);
+= 7
+> let threeTimes = partial(repeat, 3);
+> threeTimes('Hello');
+= HelloHelloHello
+> threeTimes('!');
+= !!!
+```
+
+Closures have a lot of similarities to objects. They both provide the means to organize code into data and a chunk of behavior that relies on that data. We'll discuss this relationship in later courses.
+
+**Use Function.prototype.bind for Partial Function Application**
+
+```js
+// we use `null` since the function doesn't depend on `this`
+> let add1 = add.bind(null, 1);
+> add1(2);
+= 3
+> add1(6);
+= 7
+> let threeTimes = repeat.bind(null, 3);
+> threeTimes('Hello');
+= HelloHelloHello
+> threeTimes('!');
+= !!!
+```
+
+
+
+**This is a great way to use the partial function**
+
+```js
+function partial(primary, arg1) {
+  return function(arg2) {
+    return primary(arg1, arg2);
+  };
+}
+```
+
+So we have this primary function that takes two arguments. We then make a generator function that takes two arguments, one being a method and the other being the second argument we will pass to the primary. We return an anonymous function that takes one argument that will be the first argument we pass to the primary function. The anonymous function returns the primary function with the first argument passed in from the argument passed into the applicator and the second argument provided through a closure from the generator's second arguement.
+
+ex/ *In our previous solution, `multiplyBy5` retains access to `func` and `b` long after `makePartialFunc` has finished execution. What makes this possible?*
+
+This behavior is made possible by closures. When a new function is created, it retains access to any variables that are defined in the function's outer scope.
+
+
+
+**Immediately Invoked Function Expressions (IIFE)**
+
+Function that we define and invoke simultaneously
+
+```js
+(function() {
+  console.log('hello');
+})();                     // => hello
+
+or 
+
+(function() {
+  console.log('hello');
+}());
+
+or
+
+(function(a) {
+  return a + 1;
+})(2);                    // 3
+
+or
+
+let foo = function() {
+  return function() {
+    return 10;
+  }();
+}();
+
+//We can omit the parentheses around an IIFE when the function definition is an expression that doesn't occur at the beginning of a line (recall the earlier invalid syntax example):
+console.log(foo);       // => 10
+
+//As with the original style, they let JavaScript distinguish between an ordinary function declaration and an IIFE
+```
+
+In JavaScript, surrounding a value with parentheses `( )` doesn't change the value. It is a grouping operator that controls the evaluation in expressions.
+
+ With IIFEs, we use the parentheses to make it explicit that we want to parse the function definition as an expression. As an expression it means that there is a value returned — the function — that we can immediately "invoke."
+
+So say we had a huge messy script and we needed to add a new object literal, well our variable name could have already been used (which would throw and error). So we would have to put it in a IIFE bc functions create their own scope. 
+
+```js 
+// thousands of lines of messy JavaScript code!
+(function() {
+  var myPet = {
+    type: 'Dog',
+    name: 'Spot',
+  };
+
+  console.log(`I have pet ${myPet.type} named ${myPet.name}`);
+})();
+
+// more messy JavaScript code
+
+//or
+// thousands of lines of messy JavaScript code!
+
+(function(type, name) {
+  var myPet = {
+    type,
+    name,
+  };
+
+  console.log(`I have pet ${myPet.type} named ${myPet.name}`);
+})('Dog', 'Spot');
+
+// more messy JavaScript code
+
+```
+
+It has a private scope for `myPet`, and it won't clash with any other functions.
+
+With an IIFE we can make functions and objects that have access to private data.
+
+So lets use this example to show that the studentId number is kept private and also self accumulating 
+
+```js
+let generateStudentId = (function() {
+  let studentId = 0;
+
+  return function() {
+    studentId += 1;
+    return studentId;
+  };
+})();
+```
+
+```js
+let inventory = (function() {
+  let stocks = [];
+
+  return {
+    stockCounts() {
+      stocks.forEach(function(stock) {
+        console.log(stock.name + ': ' + String(stock.count));
+      });
+    },
+    addStock(newStock) {
+      let isValid = stocks.every(function(stock) {
+        return newStock.name !== stock.name;
+      });
+
+      if (isValid) { stocks.push(newStock) }
+    },
+  };
+})();
+//With this, the stocks list is private. Consequently, what is displayed by the stockCounts method will only be influenced by what is added through the addStock method.
+```
+
+As a final refactor, we can extract the function for validating that the new stock to be added has a unique name to a private function as well. This will clean up the `addStock` method and make the logic clearer to readers:
+
+```js
+let inventory = (function() {
+  let stocks = [];
+  function isValid(newStock) {
+    return stocks.every(function(stock) {
+      return newStock.name !== stock.name;
+    });
+  }
+
+  return {
+    stockCounts() {
+      stocks.forEach(function(stock) {
+        console.log(stock.name + ': ' + String(stock.count));
+      });
+    },
+    addStock(newStock) {
+      if (isValid(newStock)) { stocks.push(newStock) }
+    },
+  };
+})();
+```
+
+**Summary**
+
+- Closures let a function access any variable that was in scope when the function was defined.
+- Objects and arrays that are no longer accessible from anywhere in the code are eligible for **garbage collection**, which frees up the memory that they use for reuse by other parts of the program.
+- You can use closures to make variables "private" to a function, or set of functions, and inaccessible elsewhere.
+- Closures allow functions to "carry around" values for later use.
+- **Higher-order functions** are functions that take a function as an argument, return a function, or both.
+- https://launchschool.com/exercise_sets/50a9820b
+
+
+
+
+
+Examples: 
+
+What is this?
+
+1) ```js
+   const person = {
+     firstName: 'Rick ',
+     lastName: 'Sanchez',
+     fullName: this.firstName + this.lastName,
+   };
+   
+   console.log(person.fullName);
+   ```
+
+   If you said it logs `NaN`, you're correct. It is tempting to say that the code will log "Rick Sanchez" to the console but that's not correct.
+
+   Anywhere outside a function, the keyword `this` is bound to the global object. If the keyword is used inside a function, then its value depends on how the function was invoked.
+
+   Since `window.firstName` and `window.lastName` (if you're using a browser) are not defined, the operation being performed here is `undefined + undefined` which results in fullName having the value `NaN`.
+
+   ```js
+   const person2 = {
+     firstName: 'Rick ',
+     lastName: 'Sanchez',
+     fullName() { return this.firstName + this.lastName; },
+   };
+   
+   console.log(person.fullName()); // 'Rick Sanchez'
+   ```
+
+   2. ```js
+      const franchise = {
+        name: 'How to Train Your Dragon',
+        allMovies() {
+          return [1, 2, 3].map(function(number) {
+            return `${this.name} ${number}`;
+          });
+        },
+      };
+      ```
+
+      The current implementation will not work because `this` will be bound to the wrong object (`window`) when the anonymous function passed to `map` is invoked. We want to access the object `franchise` from within that anonymous function.
+
+      There are multiple ways to solve this problem. Both of the solutions below take advantage of JavaScript's lexical scoping rules, but in different ways. Use self = this or an arrow function. 
+
+      or use hard binding 
+
+      ```js
+      const franchise = {
+        name: 'How to Train Your Dragon',
+        allMovies() {
+          return [1, 2, 3].map(function(number) {
+            return `${this.name} ${number}`;
+          }.bind(this));
+        },
+      };
+      
+      ```
+
+      
+
+3. [Function.prototype.bind](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_objects/Function/bind) is a method on all function objects that allows us to hard-bind a function to a particular object. The way this works is that you pass a context object to the `bind` method and it returns a new function that is essentially the same function but hard-bound to the context object supplied.
+
+   Create a function `myBind`, that accepts two arguments: 1) The function to bind, 2) The context object, and returns a new function that's hard-bound to the passed in context object.
+
+   ```js
+   function myBind(func, ctx) {
+     return function() {
+       return func.apply(ctx);
+     }
+   }
+   ```
+
+   
+
+The above solutions leverages `Function.prototype.apply` and the concept of closures to return a bound function. `myBind` receives a function and a context object as arguments. Then it returns a new function, which, when called, will call the original function using `apply`.
+
+*Improving myBind()*
+
+Our earlier implementation of the `Function.prototype.bind` was simplistic. `Function.prototype.bind` has another trick up its sleeve besides hard-binding functions to context objects. It's called partial function application. Read [this assignment](https://launchschool.com/lessons/0b371359/assignments/f2c6f687) and the [MDN documentation](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_objects/Function/bind#Partially_applied_functions) to learn more about partial function application.
+
+Alter the `myBind` function written in the previous exercise to support partial function application of additional arguments to the original function.
+
+4. 
+
+   ```js
+   function myBind(func, ctx, ...partialArgs) {
+     return function(...args) {
+       const fullArgs = partialArgs.concat(args);
+   
+       return func.apply(ctx, fullArgs);
+     };
+   }
+   ```
+
+   
+
+
+
+**Object.prototype**
+
+JS uses object prototype to share behavior, not class inheritance.  
+
+https://www.youtube.com/watch?v=-N9tBvlO9Bo
+
+**Ways to make objects**
+
+1) Factory Object Creation Pattern
+
+   1) Create objects based on pre-defined template 
+
+   2) ```js
+      function createPerson(firstName, lastName) {
+        let person = {};
+        person.firstName = firstName;
+        person.lastName = lastName || '';
+        person.fullName = function() {
+          return (this.firstName + ' ' + this.lastName).trim();
+        };
+      
+        return person;
+      }
+      
+      let john = createPerson('John', 'Doe');
+      let jane = createPerson('Jane');
+      
+      john.fullName();        // "John Doe"
+      jane.fullName();        // "Jane"
+      ```
+
+      3. The factory function allows us to create the same "type" of object easily with a pre-defined "template"; however, it also has some disadvantages:
+
+         - Every object created with the factory function has a full copy of all the methods and properties, which can be redundant.
+
+         - There isn't a way for us to inspect an object and know whether we created it from a factory function. This makes it difficult to identify whether an object is of a specific "type."
+
+           
+
+   **Constructor Pattern**
+
+   **new**
+
+```js
+// constructor function
+function Person(firstName, lastName = '') {
+  this.firstName = firstName;
+  this.lastName = lastName;
+  this.fullName = function() {
+    return (this.firstName + ' ' + this.lastName).trim();
+  };
+}
+
+let john = new Person('John', 'Doe');
+let jane = new Person('Jane');
+
+john.fullName();              // "John Doe"
+jane.fullName();              // "Jane"
+
+john.constructor;             // function Person(..)
+jane.constructor;             // function Person(..)
+
+john instanceof Person;       // true
+jane instanceof Person;       // true
+```
+
+In this example, the `Person` function is a constructor function that we use to create objects. The reason that we say it's a constructor function is that **it's intended to be called with the `new`operator**; otherwise, it's just a regular JavaScript function. The fact that we capitalized the function's name is not a syntactical requirement, but a convention to reveal the intention that we should only use the function to construct objects.
+
+In this case, the `this` in the function points to the global object, and we've defined properties and functions on the global object itself!
+
+```js
+function Person(firstName, lastName = '') {
+  this.firstName = firstName;
+  this.lastName = lastName;
+  this.fullName = function() {
+    return (this.firstName + ' ' + this.lastName).trim();
+  };
+}
+
+Person('John', 'Doe');
+window.fullName();          // "John Doe"
+```
+
+When we call a function with the `new` operator, the following happens:
+
+1. A new object is created.
+2. `this` in the function is set to point to the new object.
+3. The code in the function is executed.
+4. `this` is returned if the constructor doesn't explicitly return an object.
+
+
+
+`this` *is the* **newly created object** *in a constructor invocation*
+
+When a property accessor `myObject.myFunction` is preceded by `new`keyword, JavaScript will execute a **constructor invocation**, but **not** a **method invocation**. 
+
+The context of a constructor invocation is the newly created object. It is used to initialize the object with data that comes from constructor function arguments, setup initial value for properties, attach event handlers, etc.
+
+A constructor call creates an empty new object, which inherits properties from constructor's prototype. The role of constructor function is to initialize the object. 
+As you might know already, the context in this type of call is the created instance.
+
+**Object.create**
+
+Every JavaScript Object has a special hidden property called `[[Prototype]]`. Yes, the square brackets are indeed part of its name. We can retrieve and set this property's value with the `Object.getPrototypeOf` and `Object.setPrototypeOf` methods. When we use `Object.create` to create an object, it sets the `[[Prototype]]` property of the created object to the passed-in object:
+
+so when we create a new object a property called `[[Prototype]]` gets created and it is set to the object that is passed in 
+
+so 
+
+```js
+let foo = {};
+let qux = Object.create(foo);
+console.log(Object.getPrototypeOf(qux) === foo); // true
+```
+
+In this case, we say that the object assigned to `foo` is the **prototype object** of the object returned by `Object.create` and assigned to `qux`. We could also say that we created the object `qux` with object `foo` as its prototype.
+
+```js
+let foo = {};
+let qux = Object.create(foo);
+console.log(Object.getPrototypeOf(qux) === foo); // true
+console.log(foo.isPrototypeOf(qux));             // true
+
+//you can set it manually but its slow 
+Object.setPrototypeOf(qux, bar);
+console.log(Object.getPrototypeOf(qux) === bar); // true
+console.log(bar.isPrototypeOf(qux));             // true
+```
+
+**Chaining using `create`**
+
+```js
+let foo = {
+  a: 1,
+  b: 2,
+};
+
+let bar = Object.create(foo);
+let baz = Object.create(bar);
+let qux = Object.create(baz);
+
+Object.getPrototypeOf(qux) === baz;       // true
+Object.getPrototypeOf(baz) === bar;       // true
+Object.getPrototypeOf(bar) === foo;       // true
+
+foo.isPrototypeOf(qux);                   // true - because foo is on qux's prototype chain
+```
+
+The `Object.prototype` object is at the end of the prototype chain for all JavaScript objects. If you don't create an object from a prototype, its prototype is the `Object.prototype` object:
+
+````js
+let foo = {
+  a: 1,
+  b: 2,
+};                                // created with object literal
+
+Object.getPrototypeOf(foo) === Object.prototype;      // true
+````
+
+**Prototype Chain Lookup for Property Access**
+
+JavaScript's prototype chain lookup for properties gives us the ability to store an object's data and behaviors not just in the object itself, but anywhere on its prototype chain. This is very powerful when we want to share data or behaviors:
+
+- We can create dogs much more easily with the `dog` prototype, and don't have to duplicate `say` and `run` on every single dog object.
+- If we need to add/remove/update behavior to apply to all dogs, we can just modify the prototype object, and all dogs will pick up the changed behavior automatically.
+
+Some people call this pattern JavaScript's **Prototypal Inheritance**. The word "inheritance" comes from the classical object oriented programming languages 
+
+From a top down / design time point of view, the objects on the bottom of the prototype chain "inherited" the properties and behaviors of all the upstream objects on the prototype chain; from a bottom up / run time point of view, objects on the bottom of the prototype chain can "delegate" requests to the upstream objects to be handled. Hence this design pattern is also called **Behavior Delegation**.
+
+Objects created from prototypes can override shared behaviors by defining the same methods locally:
+
+**Object.getOwnPropertyNames() and Object.prototype.hasOwnProperty()**
+
+- The `hasOwnProperty` method on an object tests if a property is defined on the object itself.
+- The `Object.getOwnPropertyNames` method returns an array of an object's own property names.
+
+
+
+
+
+**Function Prototype**
+
+In JavaScript, most **functions** have a special `prototype` property whose value is called the **function prototype**. If the function is used as a constructor (e.g., it is called with the `new`keyword), the newly created object is given a reference to the function prototype. This reference is called the **object prototype**. Note that most non-function objects do not have a `prototype`property.
+
+Note that arrow functions are a special case of function. They do not have a `prototype`property. One consequence of this lack is that you cannot call an arrow function with the `new`keyword.
+
+```js
+let Foo = function() {};
+let obj = Foo.prototype;
+
+let bar = new Foo();
+let baz = new Foo();
+
+Object.getPrototypeOf(bar) === obj;  // true
+Object.getPrototypeOf(baz) === obj;  // true
+
+// delegation: constructor is a property of a function prototype
+bar.constructor === Foo;             // true; bar is created from Foo
+baz.constructor === Foo;             // true; baz is created from Foo
+
+bar instanceof Foo;                  // true; bar is an instance of Foo
+baz instanceof Foo;                  // true; baz is an instance of Foo
+```
+
+![Delegation in action](https://d3905n0khyu9wc.cloudfront.net/images/constructor_prototypes_1.png)
+
+The key takeaway here is that every time we call a function as a constructor, JavaScript creates objects that are prototype linked to the object that is assigned to the `prototype` property (this happens via lines 10 and 20 above). With this understanding, we can use a constructor function and its `prototype` property to set up behavior delegation:
+
+```js
+let Dog = function() {};
+
+Dog.prototype.say = function() {
+  console.log(this.name + ' says Woof!');
+}
+
+Dog.prototype.run = function() {
+  console.log(this.name + ' runs away.');
+}
+
+let fido = new Dog();
+fido.name = 'Fido';
+fido.say();             // => Fido says Woof!
+fido.run();             // => Fido runs away.
+
+let spot = new Dog();
+spot.name = 'Spot';
+spot.say();             // => Spot says Woof!
+spot.run();             // => Spot runs away.
+```
+
+This approach of defining shared behaviors on the constructor's `prototype` property is called the **Prototype Pattern** of object creation.
