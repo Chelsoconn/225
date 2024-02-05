@@ -2004,42 +2004,15 @@ JS uses object prototype to share behavior, not class inheritance.
 
 https://www.youtube.com/watch?v=-N9tBvlO9Bo
 
-**Ways to make objects**
 
-1) Factory Object Creation Pattern
 
-   1) Create objects based on pre-defined template 
 
-   2) ```js
-      function createPerson(firstName, lastName) {
-        let person = {};
-        person.firstName = firstName;
-        person.lastName = lastName || '';
-        person.fullName = function() {
-          return (this.firstName + ' ' + this.lastName).trim();
-        };
-      
-        return person;
-      }
-      
-      let john = createPerson('John', 'Doe');
-      let jane = createPerson('Jane');
-      
-      john.fullName();        // "John Doe"
-      jane.fullName();        // "Jane"
-      ```
 
-      3. The factory function allows us to create the same "type" of object easily with a pre-defined "template"; however, it also has some disadvantages:
 
-         - Every object created with the factory function has a full copy of all the methods and properties, which can be redundant.
 
-         - There isn't a way for us to inspect an object and know whether we created it from a factory function. This makes it difficult to identify whether an object is of a specific "type."
+**Constructor Pattern**
 
-           
-
-   **Constructor Pattern**
-
-   **new**
+**new**
 
 ```js
 // constructor function
@@ -2772,6 +2745,350 @@ We can call `super()` from the child class and it will call the constructor of t
 
 
 
+**Object.defineProperties**
+
+We want to have an object constructor that returns a new object with a log function that cannot be modified. In a normal constructor this is not possible. However, using the `defineProperties` method on `Object` we can provide properties and values and set whether each property can be changed or not. Here is an example of creating a property on an object that is read-only.
+
+```js
+let obj = {
+  name: 'Obj',
+};
+
+Object.defineProperties(obj, {
+  age: {
+    value: 30,
+    writable: false,
+  },
+});
+
+console.log(obj.age); // => 30
+obj.age = 32;         // throws an error in strict mode
+console.log(obj.age); // => 30
+```
+
+
+
+**Object.freeze**
+
+For property values that are objects, the references to the objects are frozen. This means that you can't point to other objects, but you can still use the frozen references to mutate the objects.
+
+```js
+let frozen = {
+  integer: 4,
+  string: 'String',
+  array: [1, 2, 3],
+  object: {
+    foo: 'bar'
+  },
+  func() {
+    console.log('I\'m frozen');
+  },
+};
+
+Object.freeze(frozen);
+frozen.integer = 8;
+frozen.string = 'Number';
+frozen.array.pop();
+frozen.object.foo = 'baz';
+frozen.func = function() {
+  console.log('I\'m not really frozen');
+};
+
+console.log(frozen.integer);      // => 4
+console.log(frozen.string);       // => String
+console.log(frozen.array);        // => [1, 2]
+console.log(frozen.object.foo);   // => baz
+frozen.func();                    // => I'm frozen
+```
+
+**CommonJS modules, also known as Node modules and JS Modules or "ES modules" and "ECMAScript modules."**
+
+The solution to all these problems is to split up a program into multiple files, commonly called **modules**. Each module can focus on a particular part of the problem, and a team of developers can work on separate parts without fear of conflicts
+
+Modules can also make it easier to work with private data, which helps maintain encapsulation. You must explicitly export the items you want to make available; everything else is private to the module. Best of all, you can easily use a module elsewhere without first having to disentangle it from the program.
+
+*Using CommonJS Modules*
+
+**CommonJS module** syntax uses `require`- To use a CommonJS module, all you have to do is import it with the `require` function.
+
+Not all flavors of JavaScript support CommonJS modules. In particular, browsers don't support them since they're loaded *synchronously*.   Synchronous loading makes CommonJS modules unsuitable for the browser environment -They're suitable for Node applications where everything resides on the same machine, but not the browser. Browsers don't natively support CommonJS modules, but you can use a transpiler like [Babel](https://babeljs.io/) to transpile code that uses CommonJS modules into a format that can be used by browsers.
+
+*Creating CommonJS Modules*
+
+Creating modules is reasonably straightforward. First, create a file with the code that you want to modularize, then add some additional code to export the items that you want other modules to use:
+
+```js
+//IN logit.js file
+function logIt(string) {
+  console.log(string);
+}
+
+module.exports = logIt;
+
+//IN main.js file
+const logIt = require("./logit");  //"./logit" is name of importing file
+logIt("You rock!");
+```
+
+exporting multiple variables
+
+```js
+let prefix = ">> ";
+
+function logIt(string) {
+  console.log(`${prefix}${string}`);
+}
+
+function setPrefix(newPrefix) {
+  prefix = newPrefix;
+}
+
+module.exports = {
+  logIt,
+  setPrefix,
+};
+
+const { logIt, setPrefix } = require("./logit");
+logIt("You rock!"); // >> You rock!
+setPrefix("++ ");
+logIt("You rock!"); // ++ You rock!
+```
+
+In Node, all code is part of a CommonJS module, including your main program. Each module provides several variables that you can use in your code:
+
+- `module`: an object that represents the current module
+
+- `exports`: the name(s) exported by the module (same as `module.exports`)
+
+- `require(moduleName)`: the function that loads a module
+
+- `__dirname`: the absolute pathname of the directory that contains the module
+
+- `__filename`: the absolute pathname of the file that contains the module
+
+  With ES6, JavaScript now supports modules natively. It adds the `export` and `import` keywords to the language, and most modern browsers now support them. If you must support older browsers, you can use tools like Babel and Webpack. Babel *transpiles* (converts) ES6 code to ES5 code. Webpack consolidates all of the modules you need into a single file. We won't discuss Webpack in this course, but we'll talk about Babel in a later lesson.
+
+**JS Modules**
+
+```js
+//foo.js
+import { bar } from "./bar";
+
+let xyz = 1; // not exported
+
+export function foo() {
+  console.log(xyz);
+  xyz += 1;
+  bar();
+}
+
+//bar.js
+export let items = [];
+export let counter = 0;
+
+export function bar() {
+  counter += 1;
+  items.push(`item ${counter}`);
+}
+
+export function getCounter() {
+  return counter;
+}
+
+//main.js
+import { foo } from "./foo";
+import { bar, getCounter, items, counter } from "./bar";
+
+foo();
+console.log(items);          // ["item 1"]
+console.log(getCounter());   // 1
+console.log(counter);        // 1
+
+bar();
+console.log(items);          // ["item 1", "item 2"]
+console.log(getCounter());   // 2
+console.log(counter);        // 2
+```
+
+Notice that exporting is as simple as preceding each declaration with the word `export`. Anything that you don't export explicitly is local to the module. Thus, the `xyz` variable in the `foo` modules is local to `foo`.
+
+we can also rename upon importation
+
+```js
+//foo.js
+export function foo() {
+  console.log(1);
+}
+
+//main.js
+import { foo as renamedFoo } from "./foo";
+
+renamedFoo(); // 1
+```
+
+and even use the **Namespace import**
+
+```js
+//foo.js
+export function foo() {
+  console.log(1);
+}
+
+//main.js
+import * as FooModule from "./foo";
+
+FooModule.foo(); // 1
+```
+
+or **Default Imports/Exports**
+
+```js
+//bar.js
+function bar() {
+  console.log(2);
+}
+
+export default bar;
+
+//main.js
+import bar from "./bar";
+
+bar(); // 2
+```
+
+Notice that curly braces are not required when importing a default export. In the example above, the default export from `bar.js` is imported and assigned the name `bar`.
+
+rename by this 
+
+```js
+//bar.js
+function bar() {
+  console.log(2);
+}
+
+export default bar;
+
+//main.js
+import renamedBar from "./bar";
+
+renamedBar(); // 2
+```
+
+even mix named and default in a JS module 
+
+```js
+//utils.js
+export function foo() {
+  console.log(1);
+}
+
+function bar() {
+  console.log(2);
+}
+
+export default bar;
+
+//main.js
+import renamedBar, { foo } from "./utils.js";
+
+foo(); // 1
+renamedBar(); // 2
+```
+
+To summarize, mixing named and default exports allows you to provide a primary or fallback export through the default export, while also offering additional functionality or values through named exports.
+
+**Module Summary**
+
+The initial release of Node came equipped with the CommonJS module system. It's still in widespread use today. However, the CommonJS module's synchronous nature makes it unsuitable for use in a browser, which led to the development of JS modules. In recent years, Node has added support for JS modules, but older versions of Node don't have direct support for them. However, even if you're using an older version of Node, you can use a transpiler to emulate the JS modules.
+
+
+
+
+
+
+
+Summary
+
+- Factory functions (also known as the Factory Object Creation Pattern) instantiate and return a new object in the function body. They allow us to create new objects based on a pre-defined template and have two major downsides:
+
+  - There is no way to tell based on a returned object itself whether the object was created by a factory function.
+  - All objects created by factory functions that share behavior have an owned copy or copies of the methods, which can be redundant.
+
+- Constructor functions are meant to be invoked with the
+
+   
+
+  ```
+  new
+  ```
+
+   
+
+  operator. They instantiate a new object behind the scenes and allow the developer to manipulate it using the
+
+   
+
+  ```
+  this
+  ```
+
+   
+
+  keyword. A typical constructor is used with the following pattern:
+
+  1. The constructor is invoked with `new`
+  2. A new object is created by the JS runtime
+  3. The new object inherits from the constructor's prototype
+  4. The new object is assigned to `this` inside the function body
+  5. The code inside the function is executed
+  6. `this` is returned unless there's an explicit object returned.
+
+- Every object has a
+
+   
+
+  ```
+  [[Prototype]]
+  ```
+
+   
+
+  property that points to a special object, the object's prototype, which is used to lookup properties that don't exist on the object itself.
+
+  - `Object.create` returns a new object with the argument object as its prototype.
+  - `Object.getPrototypeOf` can be used to retrieve the prototype object for an object
+  - `Object.setPrototypeOf` can be used to replace an object's prototype object with another object.
+  - `obj.isPrototypeOf` can be used to check for prototype relationships between objects.
+
+- The prototype chain property lookup is the basis for "prototypal inheritance", or property sharing through the prototype chain. Downstream objects "inherit" properties and behaviors from upstream objects, or, put differently, downstream objects can "delegate" properties or behaviors upstream.
+
+  - A downstream object **overrides** an inherited property if it has a same-named property on itself. (Overriding is similar to shadowing, but it doesn't completely hide the overridden properties.)
+  - `Object.getOwnPropertyNames` and `obj.hasOwnProperty` can be used to test whether a given property is owned by an object.
+
+- Every non-arrow function has a `prototype` property that points to an object with a `constructor` property, that points back to the function itself. If the function is used as a constructor, then the returned object's `[[Prototype]]` will be set to the constructor's `prototype` property. This behavior allows us to set properties on the constructor's `prototype` object that will be shared by all objects returned by it. This is called the "Prototype Pattern" of object creation.
+
+- The Pseudo Classical Pattern of object creation generates objects using a constructor function that defines state, and then defines shared behaviors on the constructor's `prototype`.
+
+- The Objects Linking to Other Objects (OLOO) pattern of object creation uses a prototype object and
+
+   
+
+  ```
+  Object.create
+  ```
+
+   
+
+  to generate objects with shared behavior.
+
+  - An optional `init` method on the prototype object is defined to set unique states on the returned objects.
+
+- Properties can be either static or instance properties. Instance properties apply to a specific object instance of a type, while static properties apply to the type as a whole.
+
+
+
+
+
 
 
 
@@ -2786,3 +3103,65 @@ Articles:
 
 - [JavaScript Design Patterns: Building a Mental Model](https://medium.com/launch-school/javascript-design-patterns-building-a-mental-model-68c2d4356538)
 - [JavaScript Weekly: Fundamental Object Design Patterns](https://medium.com/launch-school/javascript-weekly-fundamental-object-design-patterns-31453f68427f)
+- [JavaScript Weekly: Making Sense of Closures](https://medium.com/launch-school/javascript-weekly-making-sense-of-closures-daa2e0b56f88)
+- [JavaScript Weekly: Understanding Links on the Object Prototype Chain](https://medium.com/launch-school/javascript-weekly-understanding-links-on-the-object-prototype-chain-12962f05e149)
+- [JavaScript Weekly: An Introduction to First-Class Functions](https://medium.com/launch-school/javascript-weekly-an-introduction-to-first-class-functions-9d069e6fb137)
+- [JavaScript Weekly: What in the World is this?!](https://medium.com/launch-school/what-in-the-world-is-this-be803a85ed47)
+
+Exercises 
+
+https://launchschool.com/exercise_sets/95a27eff
+
+
+
+
+
+
+
+
+
+
+
+WHY?
+
+```js
+function NewObj(name) {
+  this.name = name 
+
+  this.age = function() {
+    return 1
+  }
+}
+
+// let bob = new NewObj('Bob') //{name: , age: }
+// console.log(bob.age())
+// console.log(bob.name)
+// console.log(bob.constructor)
+// console.log(bob.hasOwnProperty('age'))
+// console.log(bob.__proto__)//.constructor)
+
+// console.log(NewObj.prototype === bob.__proto__)
+
+let sue = Object.create(NewObj.prototype) //{}
+// console.log(sue.age())
+console.log(sue instanceof NewObj)
+// console.log(sue.name)
+// console.log(sue.constructor)
+// console.log(sue.hasOwnProperty('age'))
+// console.log(sue.__proto__)
+
+
+class Cat {
+  // constructor(name) {
+  //   this.name = name;
+  // }
+  speaks() {
+    return `Cat says meowwww.`;
+  }
+}
+
+let fakeCat = Object.create(Cat.prototype);
+console.log(fakeCat instanceof Cat); // logs true;
+console.log(fakeCat.speaks());       // logs undefined says meowwww.
+```
+

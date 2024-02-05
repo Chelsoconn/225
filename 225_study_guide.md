@@ -1,18 +1,175 @@
-# JS225 Study Group Idea + Questions
+# JS225 Study
+
+
+
+1. **What is an object factory? Give an example of one.**
+
+An object factory is a function that creates and returns a new object.  By using a function, we are able to produce multiple objects with the same properties and methods without replicating code.  In essence, we are able to create a template for objects. This ensures that we adhere to the DRY principle, which can simplify code refactoring and efficiency in the future. Let's give an example of code that does not use a factory function: 
+
+Let's say we want to create an object `firstObject`.  We want to define it with a name and a priority (properties/ state). We also want to define a way to log this information in a user- friendly way (function/ behavior).
+
+```js
+let firstObject = {
+  name: 'firstObject', 
+  priority: 'Urgent',
+  info() {
+    console.log(`The item ${this.name} is ${this.priority}`)
+  }
+}
+
+firstObject.info() //The item firstObject is Urgent
+```
+
+Great! Now we want another object with the same properties and behavior.  We have to replicate this code as follows:
+
+```js
+let secondObject = {
+  name: 'secondObject', 
+  priority: 'low-priority',
+  info() {
+    console.log(`The item ${this.name} is ${this.priority}`)
+  }
+}
+
+secondObject.info() //The item secondObject is low-priority
+```
+
+While this works, as our program increases in size and we require more objects of this type, refactoring and maintaining our code will become tedious and error- prone.
+
+We can remedy this by creating a factory function. This function can be called and the returned object can be assigned to a variable for later use.
+
+```js
+function tasks(name, priority) {
+  return {
+    name, 
+    priority, 
+    info() {
+      console.log(`The item ${this.name} is ${this.priority}`)
+    }
+  }
+}
+
+let firstObject = tasks('firstObject', 'Urgent')
+let secondObject = tasks('secondObject', 'low-priority')
+
+firstObject.info()  //The item firstObject is Urgent
+secondObject.info() //The item secondObject is low-priority
+```
+
+
+
+2. **What are some of the disadvantages of an object factory?**
+
+While object factories remedy the problem of code duplication by providing a function that defines a template for future objects, there are some downsides with this approach. 
+
+Each time you create a new object, JS allocates memory for that object. Because a factory function replicates the methods and properties defined in the object factory for each object, it is not an efficient use of memory.  
+
+Let's explore this below:
+
+```js
+function tasks(name, priority) {
+  return {
+    name, 
+    priority, 
+    info() {
+      console.log(`The item ${this.name} is ${this.priority}`)
+    }
+  }
+}
+
+let firstObject = tasks('firstObject', 'Urgent')
+let secondObject = tasks('secondObject', 'low-priority')
+
+console.log(firstObject.hasOwnProperty('info')) //true
+console.log(firstObject.hasOwnProperty('name')) //true
+console.log(secondObject.hasOwnProperty('info')) //true
+console.log(firstObject.hasOwnProperty('priority')) //true
+
+console.log(firstObject)  //{name: 'firstObject', priority: 'Urgent', info: [Function: info] }
+console.log(secondObject) //{name: 'secondObject', priority: 'low-priority', info: [Function: info]}
+```
+
+We can see here that both objects returned by the factory function `tasks` have their own copy of the `info` method, as well as the `name` and `priority` properties. 
+
+Another downside is that we have no way of figuring out if that object was created by a factory function. 
+
+```js
+console.log(Object.getPrototypeOf(firstObject) === Object.prototype) //true
+console.log(firstObject instanceof tasks)  //false
+console.log(firstObject instanceof Object) //true
+```
+
+As you can see, the prototype of `firstObject` is `Object.prototype` and when we try to determine if `firstObject` is an instanceof `tasks`, the result is `false`.  This is expected, as `tasks` is not used as a constructor function, but as a factory function. It illistrates how we cannot determine the origins of the returned objects. 
+
+
+
+3. **What is `this`?**
+
+`this` is the current execution context of a function.  When a function is invoked in JS, it can access the execution context  Where the function is invoked can change the context.
+
+A function's execution context is the global object. If you are in a browser, this is the `window` object.
+
+```js
+this
+//Window {window: Window, self: Window, document: document, name: '', location: Location, …}
+
+function whatIsThis() {
+  console.log(this)
+}
+
+whatIsThis() ////Window {window: Window, self: Window, document: document, name: '', location: Location, …}
+```
+
+A method's execution context, or value of `this`,  is the calling object.  How does a method differ from a functIon? A method is defined as a property on an object.  It is a behavior of that object, or a function that can be called on a specific calling object. You can differentiate a method from a function by the syntax: `callingObject.someMethod()`. 
+
+```js
+let anObject = {
+  name: 'Hi its me, anObject',
+  text: 'this allows you to access me!',
+  
+  explainThis() {
+    console.log(`${this.name}, and ${this.text}`)
+  }
+}
+
+obj1.explainThis() //
+```
+
+EXPLAIN THIS
+
+```js
+this.name = 'Hi its me, a property on the global object'
+this.text = "and you shouldn't do this. 'this' inside a arrow function "
+
+let name = 'Hi its me, a declared global variable'
+let text = 'without "this" you are accessing me from the outer scope'
+
+let anObject = {
+  name: 'Hi its me, the "name" property on anObject',
+  text: '"this" inside this obects methods allows you to access me!',
+  
+  explainThis() {
+    console.log(`${this.name}, and ${this.text}`)
+  },
+
+  arrowFunctionsContext: () => {
+    console.log(`${this.name}, and ${this.text}`)
+  },
+
+  notUsingThis() {
+    console.log(`${name}, and ${text}`)
+  }
+}
+anObject.explainThis() //Hi its me, anObject, and "this" allows you to access my properties!
+anObject.arrowFunctionsContext()  //Hi its me, a property on the global object, and and you shouldn't do this. 'this' inside a arrow function 
+anObject.notUsingThis()  //Hi its me, a declared global variable, and without "this" you are accessing me from the outer scope
+```
 
 
 
 
 
-Suggestion: At the beginning of the lesson, have a student use one of the object creation patterns to create "student" objects. Each object should have a name property and access to a function that generates a number between 1-44. Students each create an instance of themselves, then take turns generating their random number. They have to answer the number of the question they receive, (with examples if applicable). Note: If the group is a mixture of JS120 students, there's a separate set of questions that corresponds closer to their material in the JS120 section.
 
-What is an object factory? Give an example of one.
-
-What are some of the disadvantages of an object factory?
-
-What is this?
-
-What is execution context?
 
 What is strict mode, and how does it change how a program runs? 
 
