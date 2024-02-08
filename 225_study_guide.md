@@ -105,9 +105,9 @@ As you can see, the prototype of `firstObject` is `Object.prototype` and when we
 
 3. **What is `this`?**
 
-`this` is the current execution context of a function.  When a function is invoked in JS, it can access the execution context  Where the function is invoked can change the context.
+`this` is the current execution context of a function.  When a function is invoked in JS, it can access the execution context object. When/how the function is invoked can change the context.  We can access the execution context object through the keyword `this`.
 
-A function's execution context is the global object. If you are in a browser, this is the `window` object.
+A function's implicit execution context is the global object. If you are in a browser, this is the `window` object.
 
 ```js
 this
@@ -120,7 +120,7 @@ function whatIsThis() {
 whatIsThis() ////Window {window: Window, self: Window, document: document, name: '', location: Location, …}
 ```
 
-A method's execution context, or value of `this`,  is the calling object.  How does a method differ from a functIon? A method is defined as a property on an object.  It is a behavior of that object, or a function that can be called on a specific calling object. You can differentiate a method from a function by the syntax: `callingObject.someMethod()`. 
+A method's execution context, or value of `this`,  is the calling object.  How does a method differ from a function? A method is defined as a property on an object.  It is a behavior of that object, or a function that can be called on a specific calling object (a function with a receiver). You can differentiate a method from a function by the syntax: `callingObject.someMethod()` which is a method invocation of `someMethod`. 
 
 ```js
 let anObject = {
@@ -132,10 +132,10 @@ let anObject = {
   }
 }
 
-obj1.explainThis() //
+obj1.explainThis() //Hi its me, anObject, and this allows you to access me!
 ```
 
-EXPLAIN THIS
+As you can see below, `this` from inside a method references the object the method is defined within. An arrow function behaves differently in regards to `this` and will inherit it from the enclosing scope. In other words, arrow functions follow lexical scoping rules, and don't bind their own `this`. Lastly, when we don't use `this` within the method, JS will resolve it as a variable and not a property.  
 
 ```js
 this.name = 'Hi its me, a property on the global object'
@@ -167,17 +167,188 @@ anObject.notUsingThis()  //Hi its me, a declared global variable, and without "t
 
 
 
+4. **What is strict mode, and how does it change how a program runs?**
+
+The purpose of strict mode in JS in to catch mistakes and bad syntax and have them to raise errors. JS allows developers to silently fail often, which can lead to buggy code and difficulties in identifying problems.  Strict mode can also fix mistakes that make code less efficient and ensures that JS engines are able to be optimized. Strict mode can also make your code more compatible with future EMAScript versions.  When "use strict" is used within a script, all child scopes will be in strict mode. 
+
+In regards to `this`, strict mode changes the implicit execution context from the global object to `undefined`.  This is why undeclared variables are inaccessible (will raise an error), and mispellings are prevented from defining new global properties.
+
+
+
+5. **What are the benefits to using strict mode? When should you use it?**
+
+Due to the stricter parsing and error- handling when using strict mode, problems that arise in your code are more likely to be identified before becoming issues down the road.  The introduction of strict mode was a way to aid developers in writing more reliable code that could be easily maintained.  *See above for benefits* 
+
+In general, it is always a good idea to use strict mode. 
+
+
+
+6. **What is implicit function execution context?**
+
+When a program starts to run, JS creates a global object. If we are running in the browser, this global object is the `window` object. If we are running in Node, the  global object is `global`.  The area in which we run a program is called the execution environment.  When we use the term 'implicit', we are referring to the fact that JS implicitly sets the execution context if the developer does not explicity set one.
+
+```js
+//In Node
+console.log(this)  //Object [global]
+function tryThis() {
+  console.log(this)
+}
+tryThis() //Object [global]
+
+//In the Browser
+console.log(this)  //Window
+function tryThis() {
+  console.log(this)
+}
+tryThis() //Window
+```
+
+Let's say we are not in strict mode in the browser, and we have an undeclared variable `x = 1`.  Because the implicit execution context is `window`, JS will actually interpret this as `window.x = 1` which is assigning a property `x` to the global object.  
+
+A very similar behavior is seen when we declare global variables with `var`, and when we declare functions.  They are actually added as properties to the global object (except you can't delete them using the `delete` operator).  
+
+Again, when we invoke a function without an explicit context, the implicit function execuction context (or the implicit binding) is the global object in Node. But let's now assign an object's method to a variable and invoke it as a function.  As we know, a method's implicit execution context is the calling object. Because we chose to assign it to a variable and invoke it as a function, the execution context is  now not the original object the method was defined within, but the global object. This shows that the context is set when you execute the function, not when you define it
+
+```js
+let obj = {
+  whatIsThis() {
+    console.log(this)
+  }
+}
+
+obj.whatIsThis() //{ whatIsThis: [Function: whatIsThis] }
+let invokeAsAFunc = obj.whatIsThis
+invokeAsAFunc() //Window
+```
+
+Remember that when we use strict mode, that the implicit function execution context is set to `undefined`. Let's run this code again in strict mode and see what happens:
+
+```js
+"use strict"
+
+let obj = {
+  whatIsThis() {
+    console.log(this)
+  }
+}
+
+obj.whatIsThis() //{ whatIsThis: [Function: whatIsThis] }
+let invokeAsAFunc = obj.whatIsThis
+invokeAsAFunc() //undefined
+
+console.log(this) //Window 
+```
+
+The implicit method execution context is the calling object, while the implicit function execution context is `undefined`.  Why then does logging `this` in the global scope log `Window`? Strict mode does not change what `this` points to in the global scope. 
+
+
+
+7. **What is implicit method execution context?**
+
+When a function is defined as a property on an object, it is called a method.  In order to invoke a method, we must use this syntax: `someObj.someMeth()`.  If the method is not invoked with an explicit context, then the implicit execution context is the object in which is was defined.  That is, JS implicitly binds the method's execution context to the calling object. 
+
+```js 
+let obj = {
+  someMethod() {
+    console.log(this) 
+  }
+}
+
+obj.someMethod() //obj
+```
+
+That looks easy enough! But wait... 
+
+```js
+let obj = {
+  arr : [1], 
+  
+  justSomeNormalMethod() {
+    console.log(this)
+  },
+  
+  anArrowInsideAMeth() {
+    this.arr.forEach(num => {
+      console.log(this)
+    })
+  }, 
+  
+  anArrowFunction: () => {
+    console.log(this)
+  }, 
+
+}
+
+obj.anArrowInsideAMeth()  //obj
+obj.anArrowFunction()  //Window
+obj.justSomeNormalMethod()  //obj
+
+let invokeAsFunc = obj.justSomeNormalMethod
+invokeAsFunc()  //Window
+```
+
+Here we can see that the implicit method execution context can differ depending on if an arrow function is used.  An arrow function doesn't bind their own `this` and will inherit it from the parent scope (lexical scoping).  So for `anArrowInsideAMeth`, because the arrow function was defined within a parent function that bound `this` to the calling object, the execution context was inherited and is bound to the object. On the other hand, `anArrowFunction` 's parent scope is the global scope, which will bind `this` to the `Window` object in the browser. Finally `justSomeNormalMethod` will have an implicit execution context set as the object. One caveat is when we assign the method to a variable and invoke it as a function.  As we can see when we invoke `invokeAsFunc` the execution context is set to `Window`, concreting the concept that execution context is set upon invocation, not definition. 
 
 
 
 
-What is strict mode, and how does it change how a program runs? 
 
-What are the benefits to using strict mode? When should you use it?
+8. **What is explicit function execution context?**
 
-What is implicit function execution context?
+There are different ways that we can explicitly bind a function's execution context upon invocation.  If we do not explicity set the context using these methods, then JS will implicitly set the execution context. 
 
-What is explicit function execution context?
+We can use the `call` and `apply` methods to set the execution contexts as we invoke the method/ function.  We can also hard bind the method/ function to an object using the `bind` method.  When we use `bind` we are not actually invoking the function, but rather, returning a new function that is hard bound to an object. 
+
+The `call` method takes a first argument that will be set to the execution context, and subsequent comma- separated arguments that will be passed into the method/function as arguments. 
+
+The `apply` method does the same, except the subsequent arguments are provided as an array. 
+
+```js
+let launch = {
+  name : 'Launch School',
+  description: 'killer'
+}
+
+let someOtherSchool = {
+  name : 'Some bootcamp',
+  description : 'less killer',
+
+  info(anotherDescriber) {
+    console.log(`${this.name} is ${this.description}, and       ${anotherDescriber}.`)
+  }
+
+}
+
+
+someOtherSchool.info("I didn't learn as much")  //Some bootcamp is less killer, and I didn't learn as much.
+someOtherSchool.info.call(launch, "I'm learning a ton")  //Launch School is killer, and I'm learning a ton.
+
+let launchSchool = someOtherSchool.info
+launchSchool(`the implicit execution context for the function is ${this}`) //undefined is undefined, and the implicit execution context for the function is [Window Object].
+launchSchool.call(launch, "I'm learning a ton") //Launch School is killer, and I'm learning a ton.
+launchSchool.apply(launch, ["I'm learning a ton"]) //Launch School is killer, and I'm learning a ton.
+
+let boundToLaunch = someOtherSchool.info.bind(launch)
+boundToLaunch("I'm learning a ton")  //Launch School is killer, and I'm learning a ton.
+
+boundToLaunch.call(someOtherSchool, "I didn't learn as much")  //Launch School is killer, and I didn't learn as much.
+```
+
+In the code above, I've written the different ways to set an expliit execution context.  When we invoke `info` as a method on `someOtherSchool`, JS implicity sets the execution context to the calling object.  And yes, it is still implicit even though we used the `someOtherSchool` object to invoke the method. 
+
+Compare this to `someOtherSchool.info.call(launch, "I'm learning a ton")`.  `someOtherSchool` is still the object used to invoke the `info` method, but by using `call` we explicitly were able to set the execution context to the object`launch`. 
+
+I then assigned the return value of `someOtherSchool.info` to the global variable `launchSchool`.  Because the implicit execution context for a function is the Window object in the browser, when we invoke `launchSchool` without an explicit execution context we get "undefined is undefined, and the implicit execution context for the function is [Window Object].".  JS does not find the properties `name` and `description` on the global object, so `undefined` is returned.
+
+Now let's see what happens when we invoke the function assigned to `launchSchool` with an explicit execution context.  Yes, it works! We get "Launch School is killer, and I'm learning a ton."
+
+Lastly, I used `bind` to permanently bind a function to the given execution context.  Invoking `bind` does not invoke the function/method, but instead returns a new function that cannot be unbound from the object passed in as an argument. We can see this when we attempt to use `call` on `boundToLaunch` and it returns "Launch School is killer, and I didn't learn as much." Uh-oh. That's obviously not what we're trying to say! We can still access the original method and use any one of the above methods to set an explicit execution context. That's what is great abound `bind`.. It does not alter the original function/method, and we no longer have to worry about whether the context will change when invoked elsewhere.
+
+
+
+
+
+
 
 How can we change a function's execution context at execution time?
 

@@ -1,31 +1,8 @@
 **Methods**
 
-A **method** is a function stored in a property of an object. For example:
 
-`this` *is the* **object that owns the method** *in a method invocation*
 
-- Functions with a *reciever*- 
-  - the object the method is called on (method invocation)
-  - *Function invocation* expression cannot be a [property accessor](https://web.archive.org/web/20180209163541/https://developer.mozilla.org/en/docs/Web/JavaScript/Reference/Operators/Property_accessors) `obj.myFunc()`, which creates a *method invocation*. For example `[1,5].join(',')` is **not** a function invocation, but a method call. 
-- If it doesn't have an explicit reciever, it is a function (finction invocation)
 
-```js
-let greeter = {
-  morning: function() {
-    console.log('Good morning!');
-  },
-};
-
-function evening() {
-  console.log('Good evening!');
-}
-
-// Method invocation
-greeter.morning();   // greeter is the receiver/calling object; morning() is a method
-
-// Function invocation
-evening();           // there is no explicit receiver; evening() is a function
-```
 
 ```js
 let greeter = {
@@ -117,29 +94,13 @@ Add them to objects, pass them to functions, run them in entirely different cont
 
 **Global Object**
 
-The global object is determined by the execution environment. In a browser, it is the [`window`](https://web.archive.org/web/20180209163541/https://developer.mozilla.org/en-US/docs/Web/API/Window) object.
 
-JavaScript creates a **global object** when it starts running, which serves as the implicit execution context. In the browser, the global object is the `window` object. 
+
+
 
 In the previous course, we talked about *global values* such as `Infinity` and `NaN`, and *global functions*, such as `isNaN` and `parseInt`. All these global entities are properties of the global object! In your console, you can look at the `window` object to examine those properties.
 
-As with other JavaScript objects, you can add properties to the global object at any time:
 
-```js
-window.foo = 1;
-window.foo;       // 1
-```
-
-The global object is the implicit context when we evaluate expressions:
-
-For example, in the code above, even though we aren't using the `let`, `var`, or `const` keyword, the code works since JavaScript gives `foo` an implicit evaluation context: the global object. Thus, the first line is the same as `window.foo = 1`, which assigns the property `foo` on the global object with a value of `1`.
-
-On line 2, JavaScript finds `foo` in the implicit context of the global object. As a result, line 2 is identical to `window.foo`; it returns the value of the property `foo` from the global object.
-
-```js
-foo = 1;
-foo;              // 1
-```
 
 When we declare **global** variables with `var` or functions, JavaScript adds them to the global object as properties. You can verify this by examining the `window` object:
 
@@ -157,8 +118,6 @@ console.log(window.moreFoo);       // 3
 console.log(window.evenMoreFoo);   // undefined
 console.log(window.bar);           // function bar() { return 1; }
 ```
-
-The behavior for the `var` variable appears to be identical to what happens when you don't declare the variable. There's a subtle but significant difference, however: you can delete global variables that you don't declare, but not those that you did.
 
 ```js
 foo = 1;
@@ -230,131 +189,23 @@ The reason for this odd behavior is that Node wraps files in this odd looking fu
 
 That means all of your variables and functions in Node programs have function scope. That plays a part later when we learn about execution context: the execution context for your top-level program in Node is the empty object, `{}`. That fact often surprises developers that are new to Node.
 
-**Strict Mode**
-
-In strict mode, the global object is not used as the implicit context. Instead, the implicit context is `undefined`:
-
-```js
-"use strict";
-
-oneFoo = 1;        // Uncaught ReferenceError: oneFoo is not defined
-oneFoo;
-```
-
-Thus, we cannot access variables that have not been declared. Among other things, it guards against misspellings adding new properties to the global object:
-
-*With strict mode not enabled, what object serves as the implicit execution context? What happens when strict mode is enabled?*
-
-Window. In strict mode, the global object is not accessible as the implicit execution context.
-
-Strict mode is enabled at the top of the scope- All embedded functions will also be in strict mode 
-
-A single JavaScript file may contain both strict and non-strict modes. So it is possible to have different context behavior in a single script for the same invocation type:
-
-
-
-*What does the code below log?*
-
-```js
-a = 10;
-
-console.log(window.a === a);
-```
-
-Initializing an undeclared variable, as we do on line 1 in the code above, automatically creates that variable as a property on `window` since the global object is the implicit context for evaluating expressions.
 
 
 
 
 
-```js
-"use strict"
-
-a = 10;
-
-console.log(window.a === a);
-```
-
-Nothing is logged as line 3 raises a `ReferenceError`.
-
-In strict mode, using variables that have not been previously declared is not allowed. Since `a` was not previously declared, the assignment on line 3 raises an error.
-
-
-
-
-
-```js
-function func() {
-  let b = 1;
-}
-
-func();
-
-console.log(b);
-```
-
-It raises an error:  Uncaught ReferenceError: b is not defined.
-
-This code throws a `ReferenceError`, because the variable *declaration* on line 2 (which is executed when `func` is invoked on line 5) occurs in function scope. Thus, it isn't a property on the global object and isn't accessible outside the function.
-
-
-
-
-
-```js
-function func() {
-  b = 1;
-}
-
-func();
-
-console.log(b);
-```
-
-1- Unlike in the previous problem, we don't *declare* `b`; rather, we simply initialize it. As a result, `b` is created as a property on the global object, despite the fact that it's initialized in function scope.
-
-
-
-```js
-"use strict"
-
-function func() {
-  b = 1;
-}
-
-func();
-
-console.log(b);
-```
-
-Line 4 raises a `ReferenceError`. In strict mode, we don't have access to the global object as the implicit execution context. Thus, all variables have to be first declared before being used.
-
-**What is `this`?**
-
-`this` is the current execution context of a function.
-
-- **Context** of an invocation is the value of `this` within function body. For example the invocation of `map.set('key', 'value')` has the context `map`.
-
-- **Scope** of a function is the set of variables, objects, functions accessible within a function body.
 
 **Execution Context**
 
-Every time a JavaScript function is invoked, it has access to an object called the **execution context** of that function. This execution context is accessible through the keyword `this`. A JavaScript function can be invoked in a variety of ways. Which object `this` refers to depends on how the function was invoked. In this and subsequent assignments, we'll talk about how the execution context of a function changes based on the how the function is invoked.
 
-We will cover two types of execution contexts:
 
-- Implicit: This is an execution context that JavaScript "implicitly" sets.
-- Explicit: This is an execution context that you "explicitly" set.
+
 
 It's important to remember that the rules for `this` are entirely different from the rules for variable scope. While a variable's scope is determined by where you write the code, `this`depends on how you invoke it (JavaScript does not use lexical scoping rules to determine the binding).
 
 
 
 **Implicit Execution Context for Functions**
-
-The implicit function execution context (also called implicit binding for functions) is the context for a function that you invoke without supplying an explicit context. JavaScript binds such functions to the global object.
-
-
 
 ```js
 function foo() {
@@ -377,7 +228,7 @@ let bar = object.foo;
 bar();                     // "this here is: [object Window]"
 ```
 
-This example shows that binding a function to a context object occurs **when you execute the function, not when you define it**. On line 9, we set `bar` to point to `object`'s `foo` method. When we call `bar`, JavaScript implicitly binds the method to the global object instead of `object`.
+
 
 In strict mode, the implicit execution context is `undefined`. It's important to note, however, that `this` still points to the global object in the global scope.
 
@@ -398,7 +249,7 @@ console.log('this here is: ' + this); // "this here is: [object Window]"
 
 **Implicit Execution Context for Methods**
 
-The implicit *method* execution context is the execution context for any method (i.e., function referenced as an object property) invoked without an explicit context provided. JavaScript implicitly binds methods invoked in this manner to the calling object:
+
 
 ```js
 let foo = {
@@ -437,7 +288,7 @@ We'll get to appreciate better the distinction between an execution context that
 
 **Explicit Execution Context**
 
-JavaScript lets us use the `call` and `apply` methods to change a function's execution context at execution time. That is, we can explicitly bind a function's execution context to an object when we execute the function.
+
 
 ```js
 a = 1;
@@ -475,8 +326,6 @@ strings.foo.call(numbers); // 3
 
 
 **apply method**
-
-Identical to `call` except it uses an array to pass arguments
 
 
 
