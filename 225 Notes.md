@@ -415,10 +415,6 @@ baz.call(object2);  // "hello world" - `this` is still `object`
 
 Unlike `call` or `apply`, `bind` doesn't execute the function that invokes it. Instead, it creates and returns a new Function that permanently binds the invoking function to a given context object. Thus, we can pass the returned function around without concern that its context will change; it won't -- we will always be able to use it to call the original function with the desired context.
 
-Bind`'s context is the original function, and it returns a new function that calls the original function with the context supplied to `bind` as its first argument. This code also shows why the binding makes permanent changes -- no matter what you do to the returned function, you can't change the value of `context.
-
-A trap that students often fall into is the thinking that `bind` permanently alters the original function. It's important to remember that `bind` returns a new function, and that new function is permanently context-bound to the object provided as the first argument to `bind`. The original function isn't changed, but it's context is altered when it gets called.
-
 ```js
 let greetings = {
   morning: 'Good morning, ',
@@ -537,13 +533,9 @@ Amazebulous! Once a function has been bound to an execution context with `bind`,
 
 **Method Losing Context when Taken out of Context**
 
-**Indirect invocation** is performed when a function is called using `myFun.call()` or `myFun.apply()` methods.
+
 
 ​	From the [list of methods](https://web.archive.org/web/20180209163541/https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function#Methods) that a function object has, [`.call()`](https://web.archive.org/web/20180209163541/https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/call) and [`.apply()`](https://web.archive.org/web/20180209163541/https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Function/apply) are used to invoke the function with a configurable context: 
-
-
-
-If you remove a method from its containing object and execute it, it loses its context:  The indirect invocation is useful when a function should be executed with a specific context.
 
 For example to solve the context problems with function invocation, where `this` is always `window` or `undefined` in strict mode (see [2.3.](https://web.archive.org/web/20180209163541/https://dmitripavlutin.com/gentle-explanation-of-this-in-javascript/#23pitfallthisinaninnerfunction)). It can be used to simulate a method call on an object (see the previous code sample).
 
@@ -596,7 +588,7 @@ foo();
 // => hello, undefined undefined
 ```
 
-So here bc `greeting` was passed in, we have access to it but we don;t have access to the john object and it's properties 
+So here bc `greeting` was passed in, we have access to it but we don't have access to the john object and it's properties 
 
 You can also update the receiving function (`repeatThreeTimes`) by adding an extra parameter to the function and pass in the desired context:
 
@@ -774,8 +766,6 @@ One advantage of using `bind` is that you can do it once and then call it as oft
 Or..
 
 We can define `bar` using an arrow function since the value of `this` when using an arrow function is the current value of `this` in the defining function, namely, the function where the arrow function is defined:
-
-**Arrow function** is designed to declare the function in a shorter form and [lexically](https://web.archive.org/web/20180209163541/https://en.wikipedia.org/wiki/Scope_(computer_science)#Lexical_scoping) bind the context. `this` *is the* **enclosing context** *where the arrow function is defined* The arrow function doesn't create its own execution context, but takes `this`from the outer function where it is defined.
 
 
 

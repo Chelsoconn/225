@@ -105,7 +105,7 @@ As you can see, the prototype of `firstObject` is `Object.prototype` and when we
 
 3. **What is `this`?**
 
-`this` is the current execution context of a function.  When a function is invoked in JS, it can access the execution context object. When/how the function is invoked can change the context.  We can access the execution context object through the keyword `this`.
+`this` is the current execution context of a function.  When a function is invoked in JS, it sets the execution context and can access the execution context object. When/how the function is invoked can change the context.  We can access the execution context object through the keyword `this`.
 
 A function's implicit execution context is the global object. If you are in a browser, this is the `window` object.
 
@@ -135,7 +135,7 @@ let anObject = {
 obj1.explainThis() //Hi its me, anObject, and this allows you to access me!
 ```
 
-As you can see below, `this` from inside a method references the object the method is defined within. An arrow function behaves differently in regards to `this` and will inherit it from the enclosing scope. In other words, arrow functions follow lexical scoping rules, and don't bind their own `this`. Lastly, when we don't use `this` within the method, JS will resolve it as a variable and not a property.  
+As you can see below, `this` from inside a method references the object the method is defined within. An arrow function behaves differently in regards to `this` (it does not bind its' own `this`).  Lastly, when we don't use `this` within the method, JS will resolve it as a variable and not a property.  
 
 ```js
 this.name = 'Hi its me, a property on the global object'
@@ -287,7 +287,7 @@ let invokeAsFunc = obj.justSomeNormalMethod
 invokeAsFunc()  //Window
 ```
 
-Here we can see that the implicit method execution context can differ depending on if an arrow function is used.  An arrow function doesn't bind their own `this` and will inherit it from the parent scope (lexical scoping).  So for `anArrowInsideAMeth`, because the arrow function was defined within a parent function that bound `this` to the calling object, the execution context was inherited and is bound to the object. On the other hand, `anArrowFunction` 's parent scope is the global scope, which will bind `this` to the `Window` object in the browser. Finally `justSomeNormalMethod` will have an implicit execution context set as the object. One caveat is when we assign the method to a variable and invoke it as a function.  As we can see when we invoke `invokeAsFunc` the execution context is set to `Window`, concreting the concept that execution context is set upon invocation, not definition. 
+Here we can see that the implicit method execution context can differ depending on if an arrow function is used.  An arrow function doesn't bind their own `this` and will inherit it from the parent scope.  So for `anArrowInsideAMeth`, because the arrow function was defined within a parent function that bound `this` to the calling object, the execution context was inherited and is bound to the object. On the other hand, `anArrowFunction` 's  will bind `this` to the `Window` object in the browser. Finally `justSomeNormalMethod` will have an implicit execution context set as the object. One caveat is when we assign the method to a variable and invoke it as a function.  As we can see when we invoke `invokeAsFunc` the execution context is set to `Window`, concreting the concept that execution context is set upon invocation, not definition. 
 
 
 
@@ -297,11 +297,11 @@ Here we can see that the implicit method execution context can differ depending 
 
 There are different ways that we can explicitly bind a function's execution context upon invocation.  If we do not explicity set the context using these methods, then JS will implicitly set the execution context. 
 
-We can use the `call` and `apply` methods to set the execution contexts as we invoke the method/ function.  We can also hard bind the method/ function to an object using the `bind` method.  When we use `bind` we are not actually invoking the function, but rather, returning a new function that is hard bound to an object. 
+We can use the `call` and `apply` methods to set the execution contexts as we invoke the method/ function. This is called indirect invocation.  We can also hard bind the method/ function to an object using the `bind` method.  When we use `bind` we are not actually invoking the function, but rather, returning a new function that is hard bound to an object. 
 
 The `call` method takes a first argument that will be set to the execution context, and subsequent comma- separated arguments that will be passed into the method/function as arguments. 
 
-The `apply` method does the same, except the subsequent arguments are provided as an array. 
+The `apply` method does the same, except the subsequent arguments are provided as an array or array-like object. 
 
 ```js
 let launch = {
@@ -326,7 +326,7 @@ someOtherSchool.info.call(launch, "I'm learning a ton")  //Launch School is kill
 let launchSchool = someOtherSchool.info
 launchSchool(`the implicit execution context for the function is ${this}`) //undefined is undefined, and the implicit execution context for the function is [Window Object].
 launchSchool.call(launch, "I'm learning a ton") //Launch School is killer, and I'm learning a ton.
-launchSchool.apply(launch, ["I'm learning a ton"]) //Launch School is killer, and I'm learning a ton.
+launchSchool.apply(launch, ["I'm learning a ton"]) //Launch School is killer, and I'm learning a ton. (Simulates a method call on object launch)
 
 let boundToLaunch = someOtherSchool.info.bind(launch)
 boundToLaunch("I'm learning a ton")  //Launch School is killer, and I'm learning a ton.
@@ -334,15 +334,328 @@ boundToLaunch("I'm learning a ton")  //Launch School is killer, and I'm learning
 boundToLaunch.call(someOtherSchool, "I didn't learn as much")  //Launch School is killer, and I didn't learn as much.
 ```
 
-In the code above, I've written the different ways to set an expliit execution context.  When we invoke `info` as a method on `someOtherSchool`, JS implicity sets the execution context to the calling object.  And yes, it is still implicit even though we used the `someOtherSchool` object to invoke the method. 
+In the code above, I've written the different ways to set an explicit execution context.  When we invoke `info` as a method on `someOtherSchool`, JS implicity sets the execution context to the calling object.  And yes, it is still implicit even though we used the `someOtherSchool` object to invoke the method. 
 
 Compare this to `someOtherSchool.info.call(launch, "I'm learning a ton")`.  `someOtherSchool` is still the object used to invoke the `info` method, but by using `call` we explicitly were able to set the execution context to the object`launch`. 
 
-I then assigned the return value of `someOtherSchool.info` to the global variable `launchSchool`.  Because the implicit execution context for a function is the Window object in the browser, when we invoke `launchSchool` without an explicit execution context we get "undefined is undefined, and the implicit execution context for the function is [Window Object].".  JS does not find the properties `name` and `description` on the global object, so `undefined` is returned.
+I then assigned the return value of `someOtherSchool.info` to the global variable `launchSchool`.  Because the implicit execution context for a function is the Window object in the browser, when we invoke `launchSchool` without an explicit execution context we get "undefined is undefined, and the implicit execution context for the function is [Window Object].".  JS does not find the properties `name` and `description` on the global object, so `undefined` is returned.  We can see here why using indirect invocation is useful! This function requires a specific context to be useful, so when the context is lost, we must provide one to the function explicitly.
 
 Now let's see what happens when we invoke the function assigned to `launchSchool` with an explicit execution context.  Yes, it works! We get "Launch School is killer, and I'm learning a ton."
 
-Lastly, I used `bind` to permanently bind a function to the given execution context.  Invoking `bind` does not invoke the function/method, but instead returns a new function that cannot be unbound from the object passed in as an argument. We can see this when we attempt to use `call` on `boundToLaunch` and it returns "Launch School is killer, and I didn't learn as much." Uh-oh. That's obviously not what we're trying to say! We can still access the original method and use any one of the above methods to set an explicit execution context. That's what is great abound `bind`.. It does not alter the original function/method, and we no longer have to worry about whether the context will change when invoked elsewhere.
+Lastly, I used `bind` to permanently bind a function to the given execution context.  Invoking `bind` does not invoke the reciever function/method, but instead returns a new function that cannot be unbound from the object passed in as an argument. We can see this when we attempt to use `call` on `boundToLaunch` and it returns "Launch School is killer, and I didn't learn as much." Uh-oh. That's obviously not what we're trying to say! We can still access the original method and use any one of the above methods to set an explicit execution context. That's what is great abound `bind`.. It does not alter the original function/method, and we no longer have to worry about whether the context will change when invoked elsewhere.
+
+*See 225 Notes under Bind/call/apply for more examples*
+
+
+
+9. **What do call() and apply() do, and how are they different? Give an example of using each. Also unpack null as execution context and spread/ rest sytax**
+
+*See question 8* 
+
+Null as execution context: 
+
+We can pass `null` into the `call` or `apply` methods when we don't have a specific value we want `this` to point to.
+
+First, what will `null` do if passed as the initial argument to `call` or `apply`? If we are not in strict mode then `null` or `undefined` will be set to the global object and primitives will be converted to objects (`this` must always reference an object in non-strict mode). 
+
+```js
+let sanityCheck = {
+  name : "just to be sure",
+
+  whatIsNull() {
+    console.log(this)
+  }
+}
+
+sanityCheck.whatIsNull.call(null) //global (undefined as an argument/ using apply method has same result)
+sanityCheck.whatIsNull() //{ name: 'just to be sure', whatIsNull: [Function: whatIsNull] }
+```
+
+If we are in strict mode and pass in `null` then the context will be set to `null`. Note that we can still perform operations that do not involve `this`. 
+
+```js
+"use strict"
+
+let a = 5
+let b = 6
+
+let sanityCheck = {
+  name : "just to be sure",
+
+  whatIsNull() {
+    console.log(a + b)
+    console.log(this)
+  }
+}
+
+sanityCheck.whatIsNull.call(null) //11 null
+sanityCheck.whatIsNull() //11 { name: 'just to be sure', whatIsNull: [Function: whatIsNull] }
+```
+
+*Null with apply and spread syntax*
+
+```js
+let a = [1,2,3,4]
+
+console.log(Math.max.apply(null, a)) //4 (works as Spread Syntax)
+console.log(Math.max(...a))  //4
+```
+
+
+
+
+
+10. **Example of Lost Context and how to fix it**
+
+    ```js
+    function helpINeedContext(someFunc) {
+      console.log(`Is there something here?: ${someFunc()}`); 
+    }
+    
+    function starterFunc() {
+      let aHiddenObj = {
+        name: "I'm inside a hidden object, ",
+        description: 'and you can only access me if you provide me as context',
+        info() {
+          return this.name + this.description;
+        },
+      };
+    
+      helpINeedContext(aHiddenObj.info); //line 14
+    }
+    
+    starterFunc(); //Is there something here?: NaN
+    ```
+
+    Two ways to fix it: 
+
+```js
+line 14 : helpINeedContext(aHiddenObj.info.bind(aHiddenObj)); //Is there something here?: I'm inside a hidden object, and you can only access me if you provide me as context  
+```
+
+or
+
+```js
+function helpINeedContext(someFunc, context) { //add context param
+  console.log(`Is there something here?: ${someFunc.call(context)}`); 
+}
+
+function starterFunc() {
+  let aHiddenObj = {
+    name: "I'm inside a hidden object, ",
+    description: 'and you can only access me if you provide me as context',
+    info() {
+      return this.name + this.description;
+    },
+  };
+
+  helpINeedContext(aHiddenObj.info, aHiddenObj); //provide context arg
+}
+
+starterFunc();  //Is there something here?: I'm inside a hidden object, and you can only access me if you provide me as context  
+```
+
+
+
+*Function inside a method in an object*
+
+Here is an example of a function that is defined internally within another function that is a property of an object. Because a function's implicit execution context is the global object, if we don't provide an explicit context, we will not be able to access the object's properties from the internal function.
+
+```js
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    function internalFunc() {
+      console.log(this.someProp);
+    };
+    
+    internalFunc()
+  },
+};
+
+nestedFuncExample.funcProp(); //undefined
+```
+
+Just a quick side note: If we were to use an arrow function internally, this would work. This is because arrow functions don't have their own bindings to `this`, therefor `this` internally will be the same `this` from `funcProp`, which is the object `nestedFuncExample`. 
+
+```js
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    internalFunc = () => {
+      console.log(this.someProp);
+    };
+    
+    internalFunc()
+  },
+};
+
+nestedFuncExample.funcProp(); //You accessed me!
+```
+
+*Ways to fix it*
+
+1. Use `self = this`
+
+```js
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    self = this
+
+    function internalFunc() {
+      console.log(self.someProp);
+    };
+    
+    internalFunc()
+  },
+};
+
+nestedFuncExample.funcProp(); //You accessed me!
+```
+
+2. Use `bind`
+
+```js
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    let internalFunc = (function() {
+      console.log(this.someProp);
+    }).bind(this);
+    
+    internalFunc()
+  },
+};
+
+nestedFuncExample.funcProp(); //You accessed me!
+```
+
+3. Use `call`
+
+```js
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    function internalFunc() {
+      console.log(this.someProp);
+    };
+    
+    internalFunc.call(this)
+  },
+};
+
+nestedFuncExample.funcProp(); //You accessed me!
+```
+
+
+
+**Iterative Function inside a method**
+
+```js
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    [1,2].forEach(function(num) {
+      console.log(this.someProp)
+    })
+  },
+};
+
+nestedFuncExample.funcProp(); 
+/*
+undefined
+undefined
+*/
+```
+
+Because an anonymous function is being passed to forEach, the context for that function is the global object. Functions passed as arguments lose their surrounding context.
+
+Ways to fix it:
+
+1. Use `self = this`
+
+```js
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    self = this;
+
+    [1,2].forEach(function(num) {
+      console.log(self.someProp)
+    })
+  },
+};
+
+nestedFuncExample.funcProp(); 
+/*
+You accessed me!
+You accessed me!
+*/
+```
+
+or 
+
+2. Use `bind`
+
+```
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    [1,2].forEach(function(num) {
+      console.log(this.someProp)
+    }.bind(this))
+  },
+};
+
+nestedFuncExample.funcProp(); 
+/*
+You accessed me!
+You accessed me!
+*/
+```
+
+or 
+
+3. Use the optional context `thisArg` argument on `map`, `every`, or `some`
+
+```
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    [1,2].forEach(function(num) {
+      console.log(this.someProp)
+    }, this)
+  },
+};
+
+nestedFuncExample.funcProp(); 
+/*
+You accessed me!
+You accessed me!
+*/
+```
+
+or 
+
+4. Use an arrow function which looks to the surrounding environment to resolve its' execution context.
+
+```js
+let nestedFuncExample = {
+  someProp : 'You accessed me!',
+  funcProp() {
+    [1,2].forEach(num => {
+      console.log(this.someProp)
+    })
+  },
+};
+
+nestedFuncExample.funcProp(); 
+/*
+You accessed me!
+You accessed me!
+*/
+```
 
 
 
@@ -350,21 +663,9 @@ Lastly, I used `bind` to permanently bind a function to the given execution cont
 
 
 
-How can we change a function's execution context at execution time?
 
-What do call() and apply() do, and how are they different? Give an example of using each.
 
 What is the global object, and how can we access it?
-
-What is the bind() method, and how does it differ from call() an apply()?
-
-Bind pp
-
-What do we mean when we say a function can "lose it's context"? What are two ways a function can experience context loss? 
-
-Context loss pp
-
-Context loss pp
 
 What is a closure? What are the benefits of closures, and how can we create one?
 
