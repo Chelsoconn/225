@@ -659,124 +659,536 @@ You accessed me!
 
 
 
+11. **What is the global object, and how can we access it?**
+
+The global object is always defined in JS. It is an object that is available in the global scope. The interface of the global object can change depending on execution environment. Within a browser, the global object is `Window`.  If you are running in Node, the global object is `global`.  
+
+We can access the global object through the keyword `this`.  When we log `this` in the global scope or from a function defined in the global scope, `this` will reference the global object. 
 
 
 
 
 
+12. **What is a closure? What are the benefits of closures, and how can we create one?**
 
-What is the global object, and how can we access it?
-
-What is a closure? What are the benefits of closures, and how can we create one?
-
-How can we use closures to create private data? Demonstrate how we can make a variable, secretNumber private, using a closure. Why should we use closures to make data private?
-
-What is garbage collection? Which values in JS participate in GC? Why do we need to be aware of garbage collection, as software engineers?
-
-In the following code, how can we retain access to the value "Steve"? When can JS garbage collect "Steve"? 
-
-JavaScript
+In JS a closure is created every time a function is created. That is, at the function creation time.  The closure gives access to the lexical environment of the function at time of definition.  All variables/ functions available in the outer scope will still be accessible to the function even if they are inacessible (out of scope) at time of function invocation. A closure will only retain the information relevant to the function. A simple example would be something as follows:
 
 ```js
-function makeHello(name) {  return function() {    console.log("Hello, " + name + "!");  }; } let helloSteve = makeHello("Steve");
+function letsClose() {
+  someVar = 'The function has access to me through a closure!';
+
+  return function() {
+    console.log(someVar)
+  }
+}
+
+let returnedFunc = letsClose()
+returnedFunc() //The function has access to me through a closure!
 ```
 
-Notes
+By allowing functions to retain access to their lexical environment at definition, they provide developers a way to restrict data and enforce purposeful interfaces.  
 
-- Notes
-    - After the code runs, `helloSteve` references a function that closed over the local variable `name`, which right now contains the string `"Steve"`. Since the closure must keep `name` around, the reference to `"Steve"` must also stick around, which means JS can't GC `"Steve"`. When we call `helloSteve` sometime later, it still has access to `name` and can log its value.
+
+
+13. **How can we use closures to create private data? Demonstrate how we can make a variable, secretNumber private, using a closure. Why should we use closures to make data private?**
+
+In this simple example, we return an anonymous function when we invoke the `safe` function.  This anonymous function created a closure with all relevant variables, including `secretNumber`.  Therefor, even though the returned function is invoked in the global scope, it still retains access to the variable declared within the function due to the closure that was formed at the time of function creation. By doing this, we are able to keep `secretNumber` private and only accessible from the returned function. The appropriate interface (the returned function) must be utilized.  This ensures that the private data will not be altered unintentionally, and that is can only be accessed through the function invocation. In this case the returned function uses the secretNumber as an operand and returns a new number.
+
+```js
+function safe() {
+  let secretNumber = 1234
+
+  return function() {
+    return secretNumber + 17
+  }
+}
+
+let newNum = safe() 
+console.log(newNum())
+```
+
+In this more complex example, an object is returned upon invocation of the `classroom` function.  A lot is going on here, and closures play a large role in the efficacy of this program.  All of the declared variables/ `generateID` function outside of the returned object are only accessible to the methods through closures. The local variable `id` is private even to the rest of the code within `classroom`. Because these variables and function were in scope at the time of function creation, they remain accessible when the function/ method is invoked elsewhere.  Since we can't access any of the locally scoped variables in the global scope, these are private to the function.  We can only access them the way the developer intended- through the methods defined in the returned object. 
+
+```js
+function classroom(teacher, subject) {
+  let students = {};
+  let generateId = function() {
+    let id = 167456523;
+    return () => id += 1;
+  }();
+  let newId = generateId;
+
+  return {
+    addStudent(name) {
+      students[name] = newId();
+      console.log(`${name} is added to the class!`);
+    },
+
+    removeStudent(name) {
+      let otherStudents = Object.keys(students).filter(el => el !== name);
+      let removed = otherStudents.reduce((newObj, key) => {
+        newObj[key] = students[key];
+        return newObj;
+      },{});
+      students = removed
+      console.log(`${name} has been removed from the class!`);
+    },
     
-    ```jsx
-    helloSteve();  // => Hello, Steve!
-    ```
-    
-    - Before JS can garbage collect `"Steve"`, you must ensure nothing else in the program references `"Steve"`; that includes every closure that has access to the `"Steve"` string. That's not typically a concern, but if you find that you must remove a closure or other reference explicitly, you can assign `null` to the item that references it. For instance:
-    
-    ```jsx
-    helloSteve = null;
-    ```
-    
-    - That dereferences the closure shown above, which in turn dereferences `"Steve"` through the `name` variable. If nothing else now has a reference to `"Steve"`, JS is free to garbage collect it.
-    - If we modify the code above by introducing a variable prior to returning the anonymous function, the code returns an anonymous function that closes over both the `name` *and* `message` variables. Those variables, in turn, reference the strings `"Steve"` and `"Hello, Steve!"` respectively.
-    
-    ```jsx
-    function makeHello(name) {
-      let message = "Hello, " + name + "!";
-      return function() {
-        console.log(message);
-      };
+    classInfo() {
+      console.log(`\nThe teacher of this ${subject} class is ${teacher}.\n`);
+      console.log('Students and last 3 of Student IDs:\n');
+      for (student in students) {
+        lastDigits = String(students[student]).slice(-3);
+        console.log(`${student} : ${lastDigits}`);
+      }
     }
+  }
+}
+
+let newClass = classroom('Mrs. Allen', 'Math');
+
+newClass.addStudent('Chelsea'); //Chelsea is added to the class!
+newClass.addStudent('Brandon'); //Brandon is added to the class!
+newClass.addStudent('Maka');  //Maka is added to the class!
+newClass.addStudent('Jack');  //Jack is added to the class!
+
+newClass.removeStudent('Chelsea')  //Chelsea has been removed from the class!
+
+newClass.classInfo();
+/*
+The teacher of this Math class is Mrs. Allen.
+
+Students and last 3 of Student IDs:
+
+Brandon : 525
+Maka : 526
+Jack : 527
+*/
+```
+
+
+
+14. **What is garbage collection? Which values in JS participate in GC? Why do we need to be aware of garbage collection, as software engineers?**
+
+JS automatically allocates memory for objects and frees that memory when they are no longer in use. This freeing of memory is called garbage collection, and happens periodically over the lifetime of the program.  But what makes something eligible for garbage- collection(GC)? 
+
+To better understand, let's discuss where certain things are stored.  JS allocates memory on the stack for primitive values and references/pointers to objects.  The stack is not involved in GC, but has a separate system for returning memory back to the system.  This is a less complex system as primitives are of a fixed size, and the necessary memory space is more easily determined.
+
+Objects, on the other hand, are stored on the heap. These can be of varying sizes that require different memory spaces, and the program can reference these values throughout the program.  This makes it more difficult to determine whether that memory space should be returned to the system.  
+
+The way that JS does this is by evaluating the reference count to objects at certain intervals to see if it is elegible for GC.  When the reference count reaches 0, GC may return that memory back to the system.  Keep in mind that closures and object references may be present, even if not initially obvious.
+
+It's important for developers to be aware of GC because it saves them from manual memory management that was present in some lower level languages. If programmers in these languages didn't free the memory space of unused values, a memory leak would occur.
+
+*see garbage collection in 225 notes for examples*
+
+
+
+15. **In the following code, how can we retain access to the value "Steve"? When can JS garbage collect "Steve"?**
+
+```js
+function makeHello(name) {  
+  return function() {    
+    console.log("Hello, " + name + "!");  
+  };
+}
+                         } 
+let helloSteve = makeHello("Steve");
+```
+
+After the code runs, `helloSteve` references a function that closed over the local variable `name`, which right now contains the string `"Steve"`. Since the closure must keep `name` around, the reference to `"Steve"` must also stick around, which means JS can't GC `"Steve"`. When we call `helloSteve` sometime later, it still has access to `name` and can log its value.
+
+```jsx
+helloSteve();  // => Hello, Steve!
+```
+
+Before JS can garbage collect `"Steve"`, you must ensure nothing else in the program references `"Steve"`; that includes every closure that has access to the `"Steve"` string. That's not typically a concern, but if you find that you must remove a closure or other reference explicitly, you can assign `null` to the item that references it. For instance:
+
+```jsx
+helloSteve = null;
+```
+
+That dereferences the closure shown above, which in turn dereferences `"Steve"` through the `name` variable. If nothing else now has a reference to `"Steve"`, JS is free to garbage collect it.
+
+If we modify the code above by introducing a variable prior to returning the anonymous function, the code returns an anonymous function that closes over both the `name` *and* `message` variables. Those variables, in turn, reference the strings `"Steve"` and `"Hello, Steve!"` respectively.
+
+```jsx
+function makeHello(name) {
+  let message = "Hello, " + name + "!";
+  return function() {
+    console.log(message);
+  };
+}
+
+let helloSteve = makeHello("Steve");
+```
+
+Theoretically, this will prevent garbage collection on both strings. However, since `name` isn't referenced within the `helloSteve` function, depending on the browser, `"Steve"` might or might not be garbage collected.
+
+
+
+16. **What is an IIFE? Give an example. Why would we use an IIFE in code?**
+
+An IIFE, or immediately invoked function expression, is one that we define and invoke concurrently.  Note that the function must be in the form of an expression so there is a returned value that can be immediately invoked.  IIFE's encapsulte code by creating their own scopes, and can help to avoid variable name clashing in large programs.  They also can create private data that only child functions and objects can access.
+
+```js
+let generatePassword = function() {
+  let starterPassword = 'AE172FS';
+  let firstNum = 136;
+  let increment = 12;
+  
+  return function() {
+    let final = starterPassword + firstNum;
+    firstNum += increment;
+    return final;
+  }
+}()
+
+console.log(generatePassword());
+console.log(generatePassword());
+console.log(generatePassword());
+```
+
+Here we can see that the return value of the IIFE is assigned to the global variable `generatePassword`.  The return value of the IIFE is an anonymous function that returns a password.  The values `starterPassword`, `firstNum` and `increment` are private to the IIFE.  They cannot be accessed outside of the function.  The only way to return a password is through the intended interface.
+
+
+
+17. **How can you call an IIFE with an argument?**
+
+```js
+let generatePassword = function(increment) {
+  let starterPassword = 'AE172FS';
+  let firstNum = 136;
+  
+  return function() {
+    let final = starterPassword + firstNum;
+    firstNum += increment;
+    return final;
+  }
+}(12)
+
+console.log(generatePassword());
+console.log(generatePassword());
+console.log(generatePassword());
+```
+
+
+
+18. **What is a first-class function? A higher order function? Give an example.**
+
+JS employs first- class functions, which aids in this language's versatile nature and allows developers to write expressive and modular code. First-class functions can be assignes to variables, passed as arguments, and returned from functions.
+
+```js
+//Function expression assigned to variable 
+let someFunc = function() {
+  console.log('I can be assigned to other variables too!')
+}
+someFunc() //'I can be assigned to other variables too!'
+let someVar = someFunc //returned function assigned to another variable
+console.log(someVar) //[Function: someFunc]
+someVar() //'I can be assigned to other variables too!'
+```
+
+```js
+//function passed as argument 
+function addTogether(a, b) {
+  return a + b;
+}
+
+function addThree(func, b) {
+  return func(3, b);
+}
+
+console.log(addThree(addTogether, 4));
+```
+
+```js
+//function returned from function 
+function iCanReturnAFunc() {
+  let aVar = 'Here I am!';
+
+  return function() {
+    console.log(aVar);
+  }
+}
+
+let returnedFunc = iCanReturnAFunc();
+returnedFunc();
+```
+
+A higher-order function either takes a function as an argument or returns a function.  
+
+The benefits of utilizing first-class functions are code reusability, abstraction/modularity, and flexibility. 
+
+
+
+19. **What concept(s) does the following code demonstrate? How does this work?**
+
+```js
+function multiply(first, second) {
+  return first * second;
+}
+
+function makeMultiply(multiplicand) {
+  return function(number) {
+    return multiply(multiplicand, number);
+  }
+}
+```
+
+This code demonstrates partial function application.  In this code, we have a function `makeMultiplyN` (generator function) that returns a new anonymous function (applicator) that calls a third function, `multiply`(primary).  The generator function supplies one or more of the arguments that will be passed to the primary function.  The applicator function is able to access these arguments through a closure.  The applicator function supplies the rest of the argument to the primary function. 
+
+Let's see how we can use this to make customizable functions:
+
+```js  
+let multiplyByNine = makeMultiply(9)
+console.log(multiplyByNine(8)) //72
+console.log(multiplyByNine(5)) //45
+
+let multiplyByFive = makeMultiply(5)
+console.log(multiplyByFive(8)) //40
+console.log(multiplyByFive(5)) ///25
+```
+
+We assigned the return value of the generator to a variable. This returned function retains access to the argument passed into the generator via a closure.  Now this returned function can be invoked with a single argument, and the returned primary function is passed all necessary arguments. 
+
+Partial function application allows us to package data and functionality together.  We can even increase the flexibility  of this by altering the code of the generator:
+
+```js
+function multiply(first, second) {
+  return first * second;
+}
+
+function add(first, second) {
+  return first + second;
+}
+
+function makeCalc(func, multiplicand) {
+  return function(number) {
+    return func(multiplicand, number);
+  }
+}
+
+let multiplyByNine = makeCalc(multiply, 9);
+console.log(multiplyByNine(8)); //72
+console.log(multiplyByNine(5)); //45
+
+let addNine = makeCalc(add, 9);
+console.log(addNine(8)); //72
+console.log(addNine(5)); //45
+```
+
+
+
+20. **What is the difference between a constructor function and a regular function?** 
+
+Let's examine how `new` works with a contrcutor function using the code below. 
+
+On lines 1-5 we define a constructor function `NewConst` with two arguments. We can see that the intention of this function is to be a constructor by the capitalized name.  On lines 7-9 we access the `prototype` property available for all functions and define  the method `newMeth`.  All objects created from this constuctor will have access to this method, but this function will only be defined within the constructor's prototype.  On line 11 we use the `new` operator to invoke the `NewConst` constructor function with two arguments. 
+
+The `new` operator will create a new object and set the execution context to this object.  The code within the function will execute, so `this.name` and `this.type` will set new object properties `name` and `type` to the values of the arguments. The new object will then return.  We set this return value to `newObj`.  
+
+When we log `newObj` on line 12 we get what we expect:  `newConst { name: 'Created from a constructor', type: 'object' }`, which is the new object. 
+
+Logging the `prototype` property on the constructor function returns the object that `newObj` will inherit from (JS has prototypal inheritance).
+
+Line 14 checks to make sure the dunder proto property (`__proto__`) on `newObj` is the same as the constructor `prototype` property. This allows for prototypal inheritance, as the objects created from the constructor function now have access to the properties defined up the prototypal chain.
+
+ Line 15 ensures this, by calling the method `newMeth` defined on the constructor's `prototype` property on the new object `newObj`.
+
+Line 16-17 shows that the method `newMeth` is not a property on the new object, but on `NewConst` and is still accessible to the object via prototypal inheritance. 
+
+Line 18 logs `true` as the objects created by `new` from a constructor function are instances of the constructor.
+
+Lines 19-21 access the properties defined on the new objects.  These properties belong the the new object. 
+
+Finally line 22 accesses the `constructor` property defined within the `prototype` property on the constructor. This property points to the constructor function itself. 
+
+While I have used the term prototypal inheritance often, a more appropriate description of this is behavior delegation. Behaviors that are accessible from the objects created from constructors can be delegated up the prototypal chain, so objects can be smaller and only contain unique behaviors. 
+
+```js
+function NewConst(name, type) {
+  this.name = name; 
+  this.type = type;
+  console.log('using new keyword will invoke the constructor method');
+}
+
+NewConst.prototype.newMeth = function() {
+  console.log("I am a method defined on the constructor's prototype object");
+}
+
+let newObj = new NewConst('Created from a constructor', 'object'); //using new keyword will invoke the constructor method
+console.log(newObj); //newConst { name: 'Created from a constructor', type: 'object' }
+console.log(NewConst.prototype); //{ newMeth: [Function (anonymous)] }
+console.log(Object.getPrototypeOf(newObj) === NewConst.prototype); //true
+newObj.newMeth(); //I am a method defined on the constructor's prototype object
+console.log(newObj.hasOwnProperty('newMeth')); //false
+console.log(NewConst.prototype.hasOwnProperty('newMeth'));  //true
+console.log(newObj instanceof NewConst); //true
+console.log(newObj.name); //Created from a constructor
+console.log(newObj.type); //object
+console.log(Object.getOwnPropertyNames(newObj))  //['name', 'type']
+console.log(NewConst.prototype.constructor) //[Function: NewConst]
+```
+
+A constructor function is a function generally defined with a capital first letter, which shows that it is intended to be used with the `new` operator.  The `new` operator will create a new object, set the execution context to the new object (`this` inside the constructor function will reference the new object), set the `__proto__` property on the new object to the constructor's `prototype` property, the code within the function will execute, and the new object (`this` ) will be returned if a new object isn't explicitly returned. 
+
+Keep in mind, a constructor function is a function, thus can be invoked without the `new` operator. The execution context within `Job` when not used with `new` will be set to the normal function execution context, in this case the global object.  This code was run in the browser, so the `window` object is the global object. When the function is invoked we are setting properties on the global object, thus when we invoke `info` on the `window` object, "Software Engineer: Back-end" is returned. 
+
+When we invoke the constructor function using the `new` operator, `this` is set to the new object created. Therefore, the properties defined in the method are set to the new object.  The new object is returned and assigned to the global variable `usingNew`. `usingNew` can now invoke the functions defined within itself and its' prototypal chain. 
+
+```js
+function Job(title, description) {
+  this.title = title;
+  this.description = description;
+  this.info = function() {
+    return (`${this.title}: ${this.description}`);
+  };
+}
+
+Job('Software Engineer', 'Back-end');
+console.log(window.info());  // Software Engineer: Back-end
+
+
+ let usingNew = new Job('Developer', 'Front-end');
+ console.log(usingNew.info()); //Developer: Front-end
+```
+
+
+
+21. **What does the following code log to the console? **
+
+```js
+let a = 1;
+let foo;
+let obj;
+
+function Foo() {
+  this.a = 2;
+  this.bar = function() {
+    console.log(this.a);
+  };
+  this.bar();
+}
+
+foo = new Foo();
+
+foo.bar();
+Foo();
+
+obj = {};
+Foo.call(obj);
+obj.bar();
+
+console.log(this.a);
+```
+
+This logs `2` 6 times. 
+
+Let's start with line 13: 
+
+
+
+23. **What will the following code log and why?** 
+
+```js
+let ninja;
+function Ninja() {
+  this.swung = true;
+}
+
+ninja = new Ninja();
+
+Ninja.prototype.swingSword = function() {
+  return this.swung;
+};
+
+console.log(ninja.swingSword());
+```
+
+True: Even though the swingSword method is defined on the prototype after the ninja object is created, the prototype chain lookup happens when the swingSword method is called on the object, and it can be found.
+
+
+
+24. **Implement the method described in the comments:**
+
+```js
+let ninjaA;
+let ninjaB;
+function Ninja() {
+  this.swung = false;
+}
+
+ninjaA = new Ninja();
+ninjaB = new Ninja();
+
+// Add a swing method to the Ninja prototype which
+// returns the calling object and modifies swung
+
+console.log(ninjaA.swing().swung);      // must log true
+console.log(ninjaB.swing().swung);      // must log true
+```
+
+HAS ANSWER IN SPOT WIKI
+
+
+
+25. **What does Object.create do, and how is it used?**
+
     
-    let helloSteve = makeHello("Steve");
-    ```
+
+26. **What is the function.prototype?**
+
     
-    - Theoretically, this will prevent garbage collection on both strings. However, since `name` isn't referenced within the `helloSteve` function, depending on the browser, `"Steve"` might or might not be garbage collected.
 
-21. What is an IIFE? Give an example. Why would we use an IIFE in code?
-22. How can you call an IIFE with an argument? 
-23. How can you use an IIFE to create a private scope? What problems does this solve?
-24. What is a first-class function? Give an example.
-25. What concept(s) does the following code demonstrate? How does this work?
+27. **What is behavior delegation? How does JS implement inheritance differently than Ruby?**
 
-JavaScript
+    
 
-Copy
+28. **What is OLOO? Give an example. What are the benefits to organizing your code this way?**
 
-function multiply(first, second) {  return first * second; } function makeMultiplyN(multiplicand) {  return function(number) {    return multiply(multiplicand, number);  } }
+    
 
+29. **What is the Pseudo-Classical Pattern? Give an example. What are the benefits to organizing your code this way?**
 
+    
 
-26. What is partial function application, and what are the benefits of using it?
-27. Create a reusable function using partial function application.
-28. What is the difference between a constructor function and a regular function?
-29. What does the new operator do?
-30. What does the following code log to the console? Note: Remember we're running it in coderpad.
+30. **What are some things we need to consider when designing our code?**
 
-JavaScript
+    
 
-Copy
-
-let a = 1; let foo; let obj; function Foo() {  this.a = 2;  this.bar = function() {    console.log(this.a);  };  this.bar(); } foo = new Foo(); foo.bar(); Foo(); obj = {}; Foo.call(obj); obj.bar(); console.log(this.a);
+31. **What's the difference between using OLOO/ the Pseudo-Classical Pattern and using factory functions?**
 
 
 
-31. What will the following code log and why?
+32. **How does ES6 class syntax work? Give an example.** 
 
-JavaScript
+    
 
-Copy
+33. **How does inheritance work with class syntax?**
 
-let ninja; function Ninja() {  this.swung = true; } ninja = new Ninja(); Ninja.prototype.swingSword = function() {  return this.swung; }; console.log(ninja.swingSword());
+    
 
+34. **Write a constructor function. **
 
+    
 
+35. **What is the prototype chain?**
 
+    
 
-Answer
+36. **What is the .constructor property?**
 
-32. Implement the method described in the comments:
-
-JavaScript
-
-Copy
-
-let ninjaA; let ninjaB; function Ninja() {  this.swung = false; } ninjaA = new Ninja(); ninjaB = new Ninja(); // Add a swing method to the Ninja prototype which // returns the calling object and modifies swung console.log(ninjaA.swing().swung);      // must log true console.log(ninjaB.swing().swung);      // must log true
+    
 
 
 
 
 
-Answer
 
-33. What does Object.create do, and how is it used?
-34. What is the function.prototype? 
-35. What is behavior delegation? How does JS implement inheritance differently than Ruby?
-36. What is OLOO? Give an example. What are the benefits to organizing your code this way?
-37. What is the Pseudo-Classical Pattern? Give an example. What are the benefits to organizing your code this way?
-38. What are some things we need to consider when designing our code? 
-39. What's the difference between using OLOO/ the Pseudo-Classical Pattern and using factory functions? 
-40. How does ES6 class syntax work? Give an example.
-41. How does inheritance work with class syntax?
-42. Write a constructor function. 
-43. What is the prototype chain?
-44. What is the .constructor property?
+
+
+
+Questions- 
+
+15. So are strings/primitives up for GC?
