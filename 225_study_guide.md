@@ -1085,7 +1085,17 @@ console.log(this.a);
 
 This logs `2` 6 times. 
 
-Let's start with line 13: 
+Let's start with line 13: The `new` operator will create a new object, set the execution context to the new object, set the `__proto__` property on the new object to the `prototype` property of the constructor function, execute the code in the function, and return the new object unless an object is explitly returned. Because line 10 invoked the `bar1` method defined on the new object and this method logs the `a` property of the new object, `2` is returned (`this.a` on line 6 set a new property `a` to `2`).
+
+Line 13 also set the return value of the constructor function to `foo`. Line 15 invokes the `bar` method on the object `foo`.   Again this logs `2` because `bar` logs the value of the object's `a` property.
+
+Line 16 invokes the `Foo` function as a regular function. Because the implicit execution context of a function is the global object, `this` within the function when run on the browser is `window`.  Within the function then, `a` and `bar` are defined as properties on the window object. Line 10 is then `window.bar()` which will log `2` .
+
+Line 18 creates a new object literal and assigns it to the global variable `obj`.  We then indirectly call the function `Foo` with that object as the explicit execution context using the method `call` .  This will set the properties `a` and `bar` on the new object and call the `bar` method from within the `Foo` function. `2` is returned.  At this point, if we log the new object `obj` we will get `{ a: 2, bar: [Function (anonymous)] }`.  
+
+Calling `bar` on object then will give us `2` again on line 20.
+
+Finally line 21, `this.a` in the global scope will evaluate to `window.a` in the browser as the implicit execution context is the global object.  Because we set the property `a` on the window object to `2` when we invoked the `Foo` function as a regular function, `2` will be returned again. 
 
 
 
@@ -1129,57 +1139,299 @@ console.log(ninjaA.swing().swung);      // must log true
 console.log(ninjaB.swing().swung);      // must log true
 ```
 
-HAS ANSWER IN SPOT WIKI
+```js
+Ninja.prototype.swing = function() {
+  this.swung = true 
+  return this
+}
+```
 
 
 
 25. **What does Object.create do, and how is it used?**
 
-    
+`Object.create` is a static method that allows you to create a new object from an existing object.  The argument passed to the method will be set as the new object's prototype. This style of object creation is called OLOO, or objects linking to other objects. 
+
+```js
+let obj1 = {
+  name : 'Original Object',
+}
+
+let obj2 = Object.create(obj1); 
+console.log(obj2); //{}
+console.log(obj2.__proto__); //{ name: 'Original Object' }
+console.log(Object.getOwnPropertyNames(obj1)); //[ 'name' ]
+console.log(Object.getOwnPropertyNames(obj2)); //[]
+console.log(obj2.name) //Original Object
+
+obj1.newName = function(name) {
+  this.name = name;
+  return this.name;
+}
+
+console.log(obj2); //{}
+console.log(obj2.__proto__); //{ name: 'Original Object', newName: [Function (anonymous)] }
+console.log(Object.getOwnPropertyNames(obj1)); //[ 'name', 'newName' ]
+console.log(Object.getOwnPropertyNames(obj2)); //[]
+console.log(obj2.newName('Objects new name')); //Objects new name
+```
+
+```js
+let myChair = {
+  init(width, height) {
+    this.width = width;
+    this.height = height;
+    return this;
+  }
+};
+let anotherChair = Object.create(myChair).init(40,60);
+
+console.log(myChair)  //{ init: [Function: init] }
+console.log(Object.getOwnPropertyNames(anotherChair)) //[ 'width', 'height' ]
+console.log(Object.getPrototypeOf(anotherChair) === myChair) //true
+console.log(anotherChair)  //{ width: 40, height: 60 }
+```
+
+We can also define an object with an `init` method that can be called to initialize properties on object's that use it as a prototype (works like a constructor).  Because execution context is set at function/ method invocation, `this` within the `init` method will reference the calling object.  In this example, `anotherChair` will have access to the `init` method defined within `myChair` because it was created using `Object.create`.  This static method set `myChair` as the prototype to `anotherChair`.  The `init` behavior is not copied within the new object, instead the behavior is delegated to the parent object. `this` will resolve to `anotherChair` and the porperties `width` and `height` will be set to the values passed in as arguments and belong to the object `anotherChair`. 
+
+
 
 26. **What is the function.prototype?**
 
-    
+```js
+function Const(name) {
+  this.name = name 
+  this.copiedMeth = function() {
+    console.log('This method is copied in each new object.')
+  }
+}
+
+Const.prototype.delegatedMeth = function() {
+  console.log('There is only one copy of this delegated method in Const.')
+}
+
+let newObj = new Const('First Object')
+console.log(newObj) //Const { name: 'First Object', copiedMeth: [Function (anonymous)] }
+console.log(Const.prototype) //{ delegatedMeth: [Function (anonymous)] }
+console.log(Const.prototype === Object.getPrototypeOf(newObj)) //true
+console.log(newObj.hasOwnProperty('delegatedMeth')) //false
+console.log(Const.prototype.hasOwnProperty('delegatedMeth')) //true
+console.log(Const.prototype.constructor) //[Function: Const]
+console.log(newObj.constructor) //[Function: Const]
+console.log(newObj instanceof Const) //true
+```
+
+Because function are objects, they can have properties that are accessible and alterable.  One such property is the `prototype` property, which is useful when the function is used as a constructor. The `prototype` property of a function has a built- in property, `constructor`, that points to the function itself. When we use the `new` operator with a constructor function, the newly created object is assigned to the `prototype` property of the function.  In this way, we can define methods on the function's prototype property as a way to delegate behavior to the objects created from the function. This is called the Prototype Pattern of object creation.
+
+Let's examine the code above..
+
+Within the constructor function `Const` we see a property and a method defined on `this`.  What is `this`? If this function was invoked without the `new` operator, the implicit execution of the function would be the global object. Because we invoked the function as a constructor using `new`, a new object was created and `this` was set to this new object. Therefore, these properties are not defined on the function's prototype object, but instead belong to the newly created object. 
+
+We then define a method on the function's `prototype` property.  This method is not copied in each object created from the constructor, but instead this is a delegated behavior.  When we invoke this method on an instance of `Const`, JS will traverse the prototypal chain until it finds this method in the object assigned to  `Const`'s `prototype` property. 
+
+
 
 27. **What is behavior delegation? How does JS implement inheritance differently than Ruby?**
 
-    
+Objects in JS are able to delegate behavior to object's up the prototypal chain.  JS will traverse the prototypal chain when trying to resolve a property/method. Once it is resolved the search will stop. In this way, methods can be overridden by defining them within object's created from another.  This way of delegating behavior to object's upstream is called prototypal inheritance. While it is not true class inheritance that is seen in other. languages such as Ruby, the result is similar. 
+
+The term inheritance in code refers to the ability to offer reusability and reduce redundancy. While a class in Ruby is more like a blueprint for future objects, a prototype in JS is a working object instance. Instead of inheriting from a class, objects inherit directly from eachother in JS.  The prototypal chain is traversing literal objects that have behavior delegated to them.  This way, objects downstream can be much smaller.
+
+We can access an object's prototype via a hidden property `[[Prototype]]`.  We can use the static method `Object.getPrototypeOf` or the deprecated dunder prototype method `__proto__` to access this property.
+
+If we attempt to access a property of an object that is not present, JS will look in the prototype of that object.  It will continue looking at the prototypes until the property is resolved, and then will stop. If it is not found, `undefined` is returned. 
+
+
 
 28. **What is OLOO? Give an example. What are the benefits to organizing your code this way?**
+
+    ```js
+    var firstObj = { x: 1 };
+    
+    var secondObj = Object.create(firstObj);
+    secondObj.y = 2;
+    
+    var thirdObj = Object.create(secondObj);
+    
+    console.log(thirdObj.x + thirdObj.y);  // 3
+    console.log(Object.getPrototypeOf(thirdObj) === secondObj) //true
+    console.log(Object.getPrototypeOf(secondObj) === firstObj) //true
+    console.log(Object.getOwnPropertyNames(thirdObj)) //[]
+    
+    let objectCreatedFromFunc = Object.getPrototypeOf(firstObj) //created from function Object
+    
+    console.log(objectCreatedFromFunc) //{constructor: ƒ, __defineGetter__: ƒ, __defineSetter__: ƒ, hasOwnProperty: ƒ, __lookupGetter__: ƒ, …}
+    console.log(Object.getPrototypeOf(objectCreatedFromFunc)) //null
+    ```
+
+    OLOO is a style of object creation in JS that exposes the true prototypal nature of the language without extra semantics. JS utilizes this chain to delegate behavior upstream which reduces redundancy and links objects together in a modular, sensicle way. Object are linked through  accessibility of the `[[Prototype]]` property defined within every object.  In the above code, we use the static method `Obect.getPrototypeOf` method to access this property.  The object `firstObj` is defined as an object literal with one property `x`.  The object `secondObj` is then created using `Object.create`, which sets the new object's prototype to the argument passed.  The property `y` is defined within this object. Finally a third object is created with the second object as a prototype.  When we attempt to access the two properties defined upstream on the third object we see we are successful! This is because JS will traverse the prototypal chain until the property is resolved (and will return `undefined` if it is not found).  
+
+    We then perform a few sanity checks that show that, yes, the prototypes of the objects are as we defined them. What then is happening here?
+
+    ```js
+    let objectCreatedFromFunc = Object.getPrototypeOf(firstObj) //created from function Object
+    
+    console.log(objectCreatedFromFunc) //{constructor: ƒ, __defineGetter__: ƒ, __defineSetter__: ƒ, hasOwnProperty: ƒ, __lookupGetter__: ƒ, …}
+    ```
+
+    Well we already determined that every object has a `[[Prototype]]` property- even those created as object literals. We see that the prototype of this object is a function's prototype property.  Yes!.. the constructor function that creates objects has a `prototype` property that is set as the `[[Prototype]]` of an object literal.  That is why objects have access to all these methods defined here! The top of the chain is `null`, which is what is seen when we access the `[[Prototype]]` property of the constructor function's prototype property.
+
+    The benefits of using the OLOO style of object creation is that we are embracing the prototypal nature of JS without utilizing any "middlemen".  OLOO stands for objects linked to other objects, which is exactly what we are doing.. we are using objects as prototypes that are useful in their own rights. We are delegating behavior and able to dynamically alter these objects as we go.  OLOO dramtically increases code reusability and readability, and allows developers to maintain programs with much more ease. We can modularize and create appropriate interfaces with private data and show a higher level of intention in our code. 
+
+    While there are other syntaxes for object creation in JS, OLOO or Prototypal Inheritance, truly embraces the prototypal nature of JS.
 
     
 
 29. **What is the Pseudo-Classical Pattern? Give an example. What are the benefits to organizing your code this way?**
 
-    
+The Pseudo-Classical Pattern of object creation utilizes a constructor function and the `new` operator to link object's in the prototypal chain.  The constructor function has a `prototype` property assigned to an object that will be assigned to the newly created object's `[[Prototype]]` property.  This object has a `constructor` property that points to the constructor function itself.  
 
-30. **What are some things we need to consider when designing our code?**
+The `new` operator does a list of things when invoked on a constructor function.  First it will create a new object. It then changes the execution context of the function to that of the newly created object (`this` within the function now points to the new object).  It then sets the object assigned to the function's `prototype` property to the `[[Prototype]]` property of the new object. The code within the function is executed and the new object is returned and can be assigned to a variable (unless a different object is explicitly returned).
 
-    
+```js
+function Const(name) {
+  this.name = name 
+  this.copiedMeth = function() {
+    console.log('This method is copied in each new object.')
+  }
+}
 
-31. **What's the difference between using OLOO/ the Pseudo-Classical Pattern and using factory functions?**
+Const.prototype.delegatedMeth = function() {
+  console.log('There is only one copy of this delegated method in Const.')
+}
+
+let newObj = new Const('First Object')
+console.log(newObj) //Const { name: 'First Object', copiedMeth: [Function (anonymous)] }
+console.log(Const.prototype) //{ delegatedMeth: [Function (anonymous)] }
+console.log(Const.prototype === Object.getPrototypeOf(newObj)) //true
+console.log(newObj.hasOwnProperty('delegatedMeth')) //false
+console.log(Const.prototype.hasOwnProperty('delegatedMeth')) //true
+console.log(Const.prototype.constructor) //[Function: Const]
+console.log(newObj.constructor) //[Function: Const]
+console.log(newObj instanceof Const) //true
+```
+
+*See problem 26 for code explanation.*
+
+Some benefits of the Pseudoclassical Pattern is that it provides a way to instantly initialize properties on the new objects without having to run a seperate `init` method. 
+
+Look up the OLOO benefits as well. 
 
 
 
-32. **How does ES6 class syntax work? Give an example.** 
+30. **How does ES6 class syntax work? Give an example.** 
 
-    
+ES6 introduced a new class syntax was to emulate classes in other languages.  Under the hood, these classes are actually built upon prototypes.  No matter which syntax is used for object creation, JS is always prototypally-based in terms of inheritance. Objects inherit directly from other objects and behavior is delegated up the prototypal chain. 
 
-33. **How does inheritance work with class syntax?**
+```js
+class Shop {
+  constructor(name, type) {
+    this.name = name;
+    this.type = type;
+    this.inventory = []
+  }
 
-    
+  info() {
+   console.log(`${this.name} is a ${this.type} shop.`);
+  }
+  
+  addInventory(name, amount) {
+    this.inventory.push({name: name, amount: amount});
+  }
+  
+  logInventory() {
+    this.inventory.forEach(item => {
+      console.log(`${item.name} : ${item.amount}`)
+    })
+  }
+}
 
-34. **Write a constructor function. **
+class CoffeeShop extends Shop {
+  constructor(name, type, sittingArea) {
+    super(name, type) 
+    this.sittingArea = sittingArea
+  }
 
-    
+  static whatAmI() {
+    console.log("I'm a Coffee Shop!")
+  }
 
-35. **What is the prototype chain?**
+  openSeating(accessibility) {
+    if (this.sittingArea && accessibility) {
+      console.log("We have open seating!")
+      return 
+    } else {
+      console.log("Sorry, we don't have open seating.")
+    }
+  }
+}
 
-    
 
-36. **What is the .constructor property?**
+let starbucks = new CoffeeShop('Starbucks', 'coffee', true)
+CoffeeShop.whatAmI()  //I'm a Coffee Shop!
+starbucks.info() //Starbucks is a coffee shop.
+starbucks.addInventory('French Roast', 150)
+starbucks.logInventory() //French Roast : 150
 
-    
+console.log(starbucks instanceof Shop) //true 
+console.log(starbucks instanceof CoffeeShop) //true
+console.log(Object.getPrototypeOf(starbucks)) //Shop {}
+console.log(starbucks.constructor) //[class CoffeeShop extends Shop]
+console.log(typeof starbucks.constructor) //function
+console.log(Object.getOwnPropertyNames(Shop.prototype)) //[ 'constructor', 'info', 'addInventory', 'logInventory' ]
+console.log(Object.getOwnPropertyNames(CoffeeShop.prototype)) //[ 'constructor', 'openSeating' ]
+console.log(Object.getOwnPropertyNames(CoffeeShop)) //[ 'length', 'name', 'prototype', 'whatAmI' ]
+console.log(starbucks) 
+/*
+CoffeeShop {
+  name: 'Starbucks',
+  type: 'coffee',
+  inventory: [ { name: 'French Roast', amount: 150 } ],
+  sittingArea: true
+}
+*/
+```
+
+
+
+31. **What is a module and why use them?**
+
+Modules in JS are used to break code up into separate files. This allows for easier code maintenance in larger programs, and provides better manageability and structure when working with a team.  Having similar code in contained modules leads to better encapsulation and data protection because anything that is to be exported and imported must be done so explicitly.
+
+CommonJS modules load synchronously, so are not suitable in the browser. Transpilers, such as Babel, enable CommonJS to be used in the browser.  This syntax uses `require` and `exports` :
+
+```js
+//In file with modularized code mod.js
+function imInModule() {
+  console.log("I'm from the module.");
+}
+
+module.exports = imInModule;
+
+//In main file home.js
+let logItHere = require("./mod.js")
+logItHere() //"I'm from the module."
+```
+
+
+
+The second type of JS modules are called ES or JSModules, which are asynchronous and use `import` and `export` statements to make values accessible from the modules.  Asynchronous loading allows for concurrent loading of multiple modules, which is much more efficient.  ESModules were created as a way to standardize the module system, but because Node.js has supported CommonJS, you will still see plenty of modules written this way. Also it's important to keep in mind that older versions of Node.js don't support ESModules.  There are ways to ensure that ESModules are backward- compatible, but keeping compatability issues in mind is critical.
+
+```js
+//mod.js
+
+let someVar = "I'm inside the module!"; 
+
+export function fromTheMod() {
+  console.log(someVar);
+
+
+//home.js
+import { fromTheMod } from "./mod.js";
+
+
+fromTheMod(); //I'm inside the module!
+```
 
 
 
